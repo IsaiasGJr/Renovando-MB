@@ -143,18 +143,47 @@ Gera as telas do painel e sobe o servidor do admin em http://localhost:4000, ent
 | Apps: imagens com cache em memória e disco (`expo-image`), dados guardados por 1 min entre telas, cupons em lista virtualizada, busca de igrejas sem chamar a API a cada letra | `renovando-app`, `admin/app` |
 | Painel web dividido por página: carregamento inicial de 724 KB → 316 KB (os gráficos só baixam quando abertos) | `admin/painel` |
 
-## Antes de colocar no ar
+## Testes
 
-1. **Pagamento real:** integrar um gateway com PIX e split (Asaas, Pagar.me, Efí ou Mercado Pago). A API do app já tem o webhook `POST /api/webhooks/pix` (protegido por `WEBHOOK_SEGREDO`).
-2. **Código por WhatsApp:** integrar a WhatsApp Cloud API em `api/src/rotas/publico.ts` (procure o `TODO`).
-3. **Chaves de criptografia:** gere com `npm run gerar-chaves` e coloque as **mesmas** `CHAVE_CRIPTOGRAFIA` e `CHAVE_INDICE` em `api/.env` e `admin/servidor/.env`. **Guarde uma cópia em local seguro (cofre de senhas)**: sem a `CHAVE_CRIPTOGRAFIA`, CPF e WhatsApp não podem ser recuperados. Nunca troque a chave sem migrar os dados.
-4. **Configuração de produção:**
-   - Nos dois `.env`: `NODE_ENV=production` e um `JWT_SEGREDO` diferente em cada um (32+ caracteres aleatórios). Na API, `WEBHOOK_SEGREDO` com 24+ caracteres.
-   - Atrás de proxy ou hospedagem (Nginx, Cloudflare, Render...): `TRUST_PROXY=1`, para os limites usarem o IP real.
-   - **HTTPS** obrigatório nos endereços públicos e backup diário da pasta `dados/`.
-   - No admin, uma `ADMIN_SENHA` nova.
-   - Apagar `dados/` para começar sem os dados de exemplo.
-   - Os dois servidores precisam enxergar a mesma pasta `dados/` (ou `DADOS_DIR`).
-5. **Lojas:** no Google Play Console (Segurança dos dados → Exclusão de conta), informe o link `https://SEU-DOMINIO-DA-API/excluir-conta`.
-6. **App:** definir `EXPO_PUBLIC_API_URL` com o endereço público da API e gerar os builds com EAS.
-7. **Jurídico:** autorização do sorteio (Ministério da Fazenda) e regulamento publicado.
+Com `npm run api` e `npm run admin` ligados (modo de desenvolvimento):
+
+```bash
+npm test
+```
+
+Roda 139 verificações: segurança, criptografia, exclusão de conta, envio de imagens, painéis, verificação em duas etapas,
+WhatsApp, avisos no celular e mais. Os testes **nunca mexem em igrejas reais** (cada um cria uma igreja temporária e apaga
+tudo no fim) e se recusam a rodar se a API não estiver em modo de desenvolvimento.
+
+## Conteúdo vindo do site
+
+| Comando | O que traz |
+|---|---|
+| `npm run importar-igrejas` | as igrejas credenciadas (com logo e chave PIX cifrada) |
+| `npm run importar-artistas` | o catálogo de shows gospel |
+| `npm run importar-conteudo` | prêmios (valores e fotos), perguntas frequentes, Política de Privacidade, depoimentos, notícias, parcerias, banners e galeria do Palmas para Jesus |
+| `npm run otimizar-imagens` | deixa as imagens no padrão (WEBP, até 1600 px) e guarda as sem uso |
+
+Todos só leem as páginas públicas do site e podem rodar de novo sem duplicar. Os Termos de Uso não são importados
+(no site estão incompletos).
+
+## Pronto para produção
+
+| O quê | Como funciona |
+|---|---|
+| **Código de login pelo WhatsApp** | WhatsApp Cloud API (`api/src/whatsapp.ts`). Liga com `WHATSAPP_TOKEN` e `WHATSAPP_NUMERO_ID`. O código fica no banco só como resumo (hash) |
+| **Pagamento PIX** | todo gateway passa por `compartilhado/src/pagamentos.ts`. `PIX_PROVEDOR=desligado` (padrão em produção) mantém as ofertas fechadas até o gateway ser integrado. Cobranças vencidas expiram sozinhas a cada 5 min |
+| **Avisos no celular** | o app pede para ativar (em "Mais" e depois do pagamento). Automáticos: lembrete na véspera do sorteio, resultado para todos e mensagem especial para o ganhador. O admin envia avisos em **Sistema → Avisos no celular** |
+| **Verificação em duas etapas no admin** | código do aplicativo autenticador (Google Authenticator etc.), em **Minha conta**. `ADMIN_2FA_OBRIGATORIO=1` obriga todos. Outro administrador desliga para quem perdeu o celular |
+| **Hospedagem** | `docker compose up -d --build`: API, admin, HTTPS automático (Caddy) e backup diário. Passo a passo em **[PUBLICAR.md](PUBLICAR.md)** |
+| **Apps nas lojas** | `eas.json` com os endereços de produção nos dois apps |
+
+## O que ainda depende de você
+
+1. **Gateway PIX:** escolher (Asaas, Efí, Mercado Pago ou Pagar.me) e mandar as chaves de teste para integrar.
+2. **WhatsApp:** conta Meta Business, número e modelo `codigo_login` aprovado (ver PUBLICAR.md).
+3. **Jurídico:** autorização do sorteio, regulamento, revisão dos Termos e da Política de Privacidade (a do site tem telefone e endereço de exemplo).
+4. **Lojas:** Google Play e Apple exigem regras próprias para apps com sorteio pago; decidir com o advogado se a oferta fica no app ou só no site.
+5. **Dados das igrejas:** WhatsApp dos pastores (para o "Meu painel") e conferência das chaves PIX antes de repassar dinheiro.
+6. **Migração da Edição 2026:** ofertas, cupons e contas que já estão no site atual.
+7. **Equipe:** criar um usuário do painel para cada pessoa e ativar a verificação em duas etapas.

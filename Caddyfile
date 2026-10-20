@@ -1,0 +1,20 @@
+# HTTPS automático (Let's Encrypt) para os dois endereços. Os domínios vêm do .env desta pasta.
+{
+	email {$EMAIL_HTTPS}
+}
+
+# API do app (e as páginas de link: /igreja/..., /indicacao/..., /excluir-conta)
+{$DOMINIO_API} {
+	request_body {
+		max_size 20MB
+	}
+	reverse_proxy api:3333
+}
+
+# Sistema administrativo (painel web + API do admin)
+{$DOMINIO_ADMIN} {
+	request_body {
+		max_size 20MB
+	}
+	reverse_proxy admin:4000
+}

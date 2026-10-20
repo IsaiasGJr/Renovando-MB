@@ -1,0 +1,14 @@
+**/node_modules
+**/.expo
+**/.env
+**/.env.*
+!**/.env.exemplo
+.git
+dados
+backups
+renovando-app
+admin/app
+admin/painel/dist
+testes
+*.md
+!README.md

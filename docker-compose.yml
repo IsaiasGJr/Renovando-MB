@@ -1,0 +1,77 @@
+# Produção: API do app + admin + HTTPS automático (Caddy) + backup diário.
+# Uso (no servidor):  docker compose up -d --build      Guia completo: PUBLICAR.md
+#
+# Antes: preencha api/.env, admin/servidor/.env e o .env desta pasta (domínios), a partir dos .env.exemplo.
+
+services:
+  api:
+    build: .
+    command: ["npm", "start", "-w", "renovando-api"]
+    env_file: api/.env
+    environment:
+      DADOS_DIR: /app/dados
+      TRUST_PROXY: "1"
+    volumes:
+      - ./dados:/app/dados
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3333/api/saude').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  admin:
+    build: .
+    command: ["npm", "start", "-w", "renovando-admin-servidor"]
+    env_file: admin/servidor/.env
+    environment:
+      DADOS_DIR: /app/dados
+      PAINEL_DIST: /app/admin/painel/dist
+      TRUST_PROXY: "1"
+    volumes:
+      - ./dados:/app/dados
+    restart: unless-stopped
+    depends_on:
+      - api
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:4000/api/saude').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # Recebe os acessos da internet e cuida do certificado HTTPS (Let's Encrypt) sozinho.
+  caddy:
+    image: caddy:2.8-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DOMINIO_API: ${DOMINIO_API:?defina DOMINIO_API no .env}
+      DOMINIO_ADMIN: ${DOMINIO_ADMIN:?defina DOMINIO_ADMIN no .env}
+      EMAIL_HTTPS: ${EMAIL_HTTPS:?defina EMAIL_HTTPS no .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_dados:/data
+      - caddy_config:/config
+    restart: unless-stopped
+    depends_on:
+      - api
+      - admin
+
+  # Cópia do banco e das imagens todo dia (guarda 30 dias). Copie a pasta backups/ para fora do servidor.
+  backup:
+    build: .
+    command: ["node", "scripts/backup.mjs", "--repetir"]
+    environment:
+      DADOS_DIR: /app/dados
+      BACKUP_DIR: /app/backups
+      BACKUP_DIAS: "30"
+    volumes:
+      - ./dados:/app/dados
+      - ./backups:/app/backups
+    restart: unless-stopped
+
+volumes:
+  caddy_dados:
+  caddy_config:

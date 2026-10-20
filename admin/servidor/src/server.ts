@@ -27,6 +27,8 @@ if (env.dev) app.use(cors());
 app.use(compression());
 app.use(express.json({ limit: '1mb' }));
 app.use('/uploads', servirUploads());
+// Para o monitoramento saber se o servidor está de pé (sem dados).
+app.get('/api/saude', (_req, res) => res.json({ ok: true }));
 app.use('/api', semCache, admin);
 app.use('/api', tratarErros);
 

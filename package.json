@@ -18,6 +18,7 @@
     "admin:app": "npm --prefix admin/app start",
     "gerar-chaves": "node scripts/gerar-chaves.mjs",
     "test": "node --no-warnings testes/rodar.mjs",
+    "backup": "node --no-warnings scripts/backup.mjs",
     "importar-artistas": "node scripts/importar-artistas.mjs",
     "importar-igrejas": "tsx scripts/importar-igrejas.mts",
     "importar-conteudo": "tsx scripts/importar-conteudo.mts",
