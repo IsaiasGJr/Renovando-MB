@@ -19,4 +19,7 @@ if (!env.dev && (env.jwtSegredo === 'troque-este-segredo-em-producao' || env.jwt
 if (!env.dev && env.webhookSegredo.length < 24) {
   throw new Error('Defina WEBHOOK_SEGREDO no .env (24+ caracteres aleatórios) antes de rodar em produção.');
 }
+if (!env.dev && !(process.env.WHATSAPP_TOKEN && process.env.WHATSAPP_NUMERO_ID)) {
+  console.warn('⚠ WHATSAPP_TOKEN/WHATSAPP_NUMERO_ID não configurados: ninguém consegue entrar no app (o código não é enviado).');
+}
 if (env.dev) console.warn('⚠ API em MODO DE TESTE: código de login 123456 e pagamento simulado. Nunca use assim em produção.');

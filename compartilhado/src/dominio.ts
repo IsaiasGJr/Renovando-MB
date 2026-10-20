@@ -1,5 +1,6 @@
 import { randomInt } from 'node:crypto';
 import { executar, inserir, todos, transacao, um } from './db.ts';
+import { provedorPix } from './pagamentos.ts';
 import { ErroHttp, naoEncontrado, novoId } from './util.ts';
 
 export type Divisao = { rotulo: string; percentual: number }[];
@@ -34,20 +35,21 @@ export function campanhaAtiva() {
 
 const VALIDADE_PIX_MIN = 30;
 
-/** Payload PIX de exemplo. Na integração real o gateway devolve o copia-e-cola. */
-function payloadPix(txid: string, valor: number) {
-  return `00020126580014BR.GOV.BCB.PIX0136${txid}5204000053039865406${valor.toFixed(2)}5802BR5909RENOVANDO6006PALMAS62070503***6304`;
-}
-
-export function criarOferta(p: { usuarioId?: string; igrejaId: string; quantidade: number; anonima: boolean }) {
+export async function criarOferta(p: { usuarioId?: string; igrejaId: string; quantidade: number; anonima: boolean }) {
   if (!p.anonima && !p.usuarioId) throw new ErroHttp(401, 'Entre na sua conta para concorrer aos prêmios.');
   const campanha = campanhaAtiva();
-  const igreja = um<{ status: string }>('SELECT status FROM igrejas WHERE id = ?', p.igrejaId);
+  const igreja = um<{ status: string; nomeFantasia: string }>('SELECT status, nome_fantasia FROM igrejas WHERE id = ?', p.igrejaId);
   if (!igreja || igreja.status !== 'ativa') throw new ErroHttp(400, 'Igreja não encontrada ou ainda não aprovada.');
 
   const id = novoId();
   const txid = id.replace(/-/g, '').slice(0, 25);
   const valor = Math.round(p.quantidade * campanha.valorCupom * 100) / 100;
+  // A cobrança é criada no gateway ANTES de gravar: se o gateway falhar, nenhuma oferta fica pela metade.
+  const cobranca = await provedorPix().criarCobranca({
+    txid, valor, expiraEmMin: VALIDADE_PIX_MIN, divisao: campanha.divisao,
+    descricao: `Oferta ${campanha.edicao} - ${igreja.nomeFantasia}`.slice(0, 140),
+    igreja: { id: p.igrejaId, nome: igreja.nomeFantasia },
+  });
   inserir('ofertas', {
     id,
     campanhaId: campanha.id,
@@ -57,7 +59,9 @@ export function criarOferta(p: { usuarioId?: string; igrejaId: string; quantidad
     valor,
     anonima: p.anonima,
     txid,
-    copiaECola: payloadPix(txid, valor),
+    copiaECola: cobranca.copiaECola,
+    qrCode: cobranca.qrCodeBase64 ?? '',
+    idGateway: cobranca.idNoGateway ?? null,
     divisaoJson: JSON.stringify(campanha.divisao),
     expiraEm: new Date(Date.now() + VALIDADE_PIX_MIN * 60_000).toISOString(),
   });
@@ -74,6 +78,7 @@ type OfertaDb = {
   anonima: number;
   status: string;
   copiaECola: string;
+  qrCode: string;
   expiraEm: string;
   criadaEm: string;
   pagaEm: string | null;
@@ -96,7 +101,7 @@ export function buscarOferta(id: string) {
     anonima: !!o.anonima,
     status: o.status,
     criadaEm: o.criadaEm,
-    pix: { copiaECola: o.copiaECola, expiraEm: o.expiraEm },
+    pix: { copiaECola: o.copiaECola, expiraEm: o.expiraEm, ...(o.qrCode ? { qrCodeBase64: o.qrCode } : {}) },
   };
 }
 
@@ -112,11 +117,13 @@ function novoNumero(campanhaId: string): string {
  * Confirma o pagamento e gera os cupons. Idempotente: o gateway pode
  * enviar o mesmo webhook mais de uma vez.
  */
-export function confirmarPagamento(filtro: { id?: string; txid?: string }) {
+export function confirmarPagamento(filtro: { id?: string; txid?: string; idNoGateway?: string }) {
   return transacao(() => {
     const o = filtro.id
       ? um<OfertaDb>('SELECT * FROM ofertas WHERE id = ?', filtro.id)
-      : um<OfertaDb>('SELECT * FROM ofertas WHERE txid = ?', filtro.txid ?? '');
+      : filtro.idNoGateway
+        ? um<OfertaDb>('SELECT * FROM ofertas WHERE id_gateway = ?', filtro.idNoGateway)
+        : um<OfertaDb>('SELECT * FROM ofertas WHERE txid = ?', filtro.txid ?? '');
     if (!o) throw naoEncontrado('Oferta');
     if (o.status === 'paga') return { jaPaga: true };
 
@@ -170,6 +177,13 @@ export function cupomParaImagem(usuarioId: string, cupomId: string) {
   );
   if (!c) throw naoEncontrado('Cupom');
   return c;
+}
+
+/** Marca como expiradas as cobranças vencidas sem pagamento (roda de tempos em tempos na API). */
+export function expirarOfertasVencidas() {
+  return executar(
+    "UPDATE ofertas SET status = 'expirada' WHERE status = 'aguardando_pagamento' AND expira_em < strftime('%Y-%m-%dT%H:%M:%fZ','now')",
+  ).changes;
 }
 
 /**

@@ -1,4 +1,4 @@
-import { randomInt, timingSafeEqual } from 'node:crypto';
+import { createHash, randomInt, timingSafeEqual } from 'node:crypto';
 import { closeSync, openSync, readSync, unlinkSync } from 'node:fs';
 import { Router } from 'express';
 import multer from 'multer';
@@ -15,10 +15,12 @@ import {
   excluirConta,
 } from '../../../compartilhado/src/dominio.ts';
 import { registrar } from '../../../compartilhado/src/auditoria.ts';
+import { provedorPix } from '../../../compartilhado/src/pagamentos.ts';
 import { dataEmissao, gerarImagemCupom } from '../../../compartilhado/src/cupom.ts';
 import { cifrar, indice } from '../../../compartilhado/src/cripto.ts';
 import { cachePublico, limitar, limitePorIp } from '../../../compartilhado/src/seguranca.ts';
 import { env } from '../env.ts';
+import { enviarCodigoWhatsapp } from '../whatsapp.ts';
 import { ErroHttp, naoEncontrado, novoId, param, query, slugUnico, soDigitos, validar } from '../../../compartilhado/src/util.ts';
 
 export const publico = Router();
@@ -205,20 +207,24 @@ publico.post('/shows/solicitacoes', limiteCadastro, (req, res) => {
 
 // ---------- Login por código (WhatsApp) ----------
 
-publico.post('/auth/codigo', (req, res) => {
+// O código fica guardado só como resumo (hash): quem copiar o banco não consegue entrar com ele.
+const resumoCodigo = (codigo: string) => createHash('sha256').update(`renovando-otp:${codigo}`).digest('hex');
+
+publico.post('/auth/codigo', async (req, res) => {
   const { whatsapp: fone } = validar(z.object({ whatsapp }), req.body);
   // Envio de código custa dinheiro e pode incomodar: 3 por número e 10 por IP a cada 15 minutos.
   limitar(`codigo-ip:${req.ip}`, 10, 15 * MIN);
   limitar(`codigo-fone:${fone}`, 3, 15 * MIN, 'Já enviamos códigos para este número. Aguarde 15 minutos para pedir outro.');
+  // Em desenvolvimento o código é sempre 123456 e nada é enviado.
   const codigo = env.dev ? '123456' : String(randomInt(0, 1_000_000)).padStart(6, '0');
+  if (!env.dev) await enviarCodigoWhatsapp(fone, codigo);
   executar(
     `INSERT INTO otps (whatsapp, codigo, tentativas, expira_em) VALUES (?, ?, 0, ?)
      ON CONFLICT(whatsapp) DO UPDATE SET codigo = excluded.codigo, tentativas = 0, expira_em = excluded.expira_em`,
     indice(fone),
-    codigo,
+    resumoCodigo(codigo),
     new Date(Date.now() + 10 * 60_000).toISOString(),
   );
-  // TODO: enviar `codigo` pela WhatsApp Cloud API. Em desenvolvimento o código é sempre 123456.
   if (env.dev) console.log(`[otp] ${fone}: ${codigo}`);
   res.json({ ok: true });
 });
@@ -229,7 +235,9 @@ function conferirCodigo(fone: string, codigo: string) {
   const otp = um<{ codigo: string; tentativas: number; expiraEm: string }>('SELECT * FROM otps WHERE whatsapp = ?', chave);
   if (!otp || new Date(otp.expiraEm) < new Date()) throw new ErroHttp(400, 'Código expirado. Peça um novo.');
   if (otp.tentativas >= 5) throw new ErroHttp(429, 'Muitas tentativas. Peça um novo código.');
-  if (!timingSafeEqual(Buffer.from(otp.codigo), Buffer.from(codigo))) {
+  const esperado = Buffer.from(otp.codigo);
+  const recebido = Buffer.from(resumoCodigo(codigo));
+  if (esperado.length !== recebido.length || !timingSafeEqual(esperado, recebido)) {
     executar('UPDATE otps SET tentativas = tentativas + 1 WHERE whatsapp = ?', chave);
     throw new ErroHttp(400, 'Código inválido. Confira e tente de novo.');
   }
@@ -266,7 +274,7 @@ publico.post('/auth/verificar', limitePorIp('verificar', 20, 15 * MIN), (req, re
 
 // ---------- Ofertas e cupons ----------
 
-publico.post('/ofertas', limitePorIp('oferta', 30, 15 * MIN), usuarioOpcional, (req, res) => {
+publico.post('/ofertas', limitePorIp('oferta', 30, 15 * MIN), usuarioOpcional, async (req, res) => {
   const d = validar(
     z.object({
       igrejaId: z.string(),
@@ -275,7 +283,7 @@ publico.post('/ofertas', limitePorIp('oferta', 30, 15 * MIN), usuarioOpcional, (
     }),
     req.body,
   );
-  res.status(201).json(criarOferta({ ...d, usuarioId: d.anonima ? undefined : req.usuarioId }));
+  res.status(201).json(await criarOferta({ ...d, usuarioId: d.anonima ? undefined : req.usuarioId }));
 });
 
 publico.get('/ofertas/:id', (req, res) => {
@@ -441,15 +449,10 @@ publico.delete('/me', exigirUsuario, (req, res) => {
   res.json({ ok: true });
 });
 
-// Webhook do gateway de pagamento: confirma o PIX pelo txid.
+// Aviso do gateway de pagamento: confere a assinatura e confirma o PIX (pode chegar repetido).
 publico.post('/webhooks/pix', (req, res) => {
-  const recebido = Buffer.from(String(req.headers['x-webhook-secret'] ?? ''));
-  const esperado = Buffer.from(env.webhookSegredo);
-  if (!env.webhookSegredo || recebido.length !== esperado.length || !timingSafeEqual(recebido, esperado)) {
-    throw new ErroHttp(401, 'Assinatura inválida.');
-  }
-  const { txid } = validar(z.object({ txid: z.string() }), req.body);
-  confirmarPagamento({ txid });
+  const pago = provedorPix().lerWebhook(req);
+  if (pago) confirmarPagamento(pago.idNoGateway ? { idNoGateway: pago.idNoGateway } : { txid: pago.txid });
   res.json({ ok: true });
 });
 

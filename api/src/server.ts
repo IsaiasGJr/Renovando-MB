@@ -3,6 +3,8 @@ import cors from 'cors';
 import express from 'express';
 import { fileURLToPath } from 'node:url';
 import { um } from '../../compartilhado/src/db.ts';
+import { expirarOfertasVencidas } from '../../compartilhado/src/dominio.ts';
+import { provedorPix } from '../../compartilhado/src/pagamentos.ts';
 import { semear } from '../../compartilhado/src/seed.ts';
 import { cabecalhosSeguranca, semCache, servirUploads } from '../../compartilhado/src/seguranca.ts';
 import { tratarErros } from '../../compartilhado/src/util.ts';
@@ -67,6 +69,15 @@ app.get('/excluir-conta.js', (_req, res) => {
 app.use('/api', semCache, publico);
 app.use(tratarErros);
 
+// Cobranças PIX vencidas viram "expiradas" a cada 5 minutos (mesmo que ninguém abra a oferta).
+setInterval(() => {
+  try {
+    expirarOfertasVencidas();
+  } catch {
+    // banco ocupado: tenta na próxima rodada
+  }
+}, 5 * 60_000).unref();
+
 app.listen(env.porta, '0.0.0.0', () => {
-  console.log(`API do app em http://localhost:${env.porta}/api (${env.dev ? 'desenvolvimento' : 'produção'})`);
+  console.log(`API do app em http://localhost:${env.porta}/api (${env.dev ? 'desenvolvimento' : 'produção'}, PIX: ${provedorPix().nome})`);
 });

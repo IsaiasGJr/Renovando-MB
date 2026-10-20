@@ -237,6 +237,10 @@ garantirColuna('artistas', 'galeria', "TEXT NOT NULL DEFAULT '[]'");
 db.exec('CREATE UNIQUE INDEX IF NOT EXISTS artistas_slug ON artistas(slug)');
 // Arte do cupom da campanha (o mesmo bilhete do site): o número e os dados são escritos por cima.
 garantirColuna('campanhas', 'imagem_cupom', "TEXT NOT NULL DEFAULT ''");
+// Cobrança no gateway de pagamento: id lá dentro e imagem do QR Code (quando o gateway manda).
+garantirColuna('ofertas', 'id_gateway', 'TEXT');
+garantirColuna('ofertas', 'qr_code', "TEXT NOT NULL DEFAULT ''");
+db.exec('CREATE INDEX IF NOT EXISTS ofertas_id_gateway ON ofertas(id_gateway)');
 
 db.exec(`
 CREATE TABLE IF NOT EXISTS banners (
