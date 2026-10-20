@@ -42,6 +42,8 @@ function abrirLink(link: string) {
 function Banners({ banners }: { banners: Banner[] }) {
   const { width } = useWindowDimensions();
   const largura = Math.min(width, 700) - espaco.lg * 2;
+  // Formato das artes do site (cerca de 2,5 : 1).
+  const altura = Math.round(largura / 2.5);
   const [atual, setAtual] = useState(0);
   if (!banners.length) return null;
   return (
@@ -53,17 +55,20 @@ function Banners({ banners }: { banners: Banner[] }) {
         onScroll={(e) => setAtual(Math.round(e.nativeEvent.contentOffset.x / (largura + espaco.md)))} scrollEventThrottle={64}>
         {banners.map((b, i) => (
           <Pressable key={b.id} onPress={() => abrirLink(b.link)} accessibilityRole={b.link ? 'link' : undefined} accessibilityLabel={b.titulo}
-            style={[{ width: largura, height: 150, borderRadius: raio.lg, overflow: 'hidden' }, sombra(2)]}>
+            style={[{ width: largura, height: altura, borderRadius: raio.lg, overflow: 'hidden', backgroundColor: cores.primariaProfunda }, sombra(2)]}>
             {b.imagemUrl ? (
-              <Imagem url={b.imagemUrl} style={StyleSheet.absoluteFill} />
+              // Arte pronta (como no site): já traz o texto, então aparece inteira, sem título por cima.
+              <Imagem url={b.imagemUrl} ajuste="contain" style={{ width: largura, height: altura }} rotulo={b.titulo} />
             ) : (
-              <LinearGradient colors={i % 2 ? [...gradienteOuro] : [...gradienteMarca]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+              <>
+                <LinearGradient colors={i % 2 ? [...gradienteOuro] : [...gradienteMarca]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+                <LinearGradient colors={['rgba(0,0,0,0)', 'rgba(30,0,22,0.65)']} style={StyleSheet.absoluteFill} />
+                <View style={{ flex: 1, justifyContent: 'flex-end', padding: espaco.lg, gap: 2 }}>
+                  <Text style={{ color: '#fff', fontSize: 20, fontWeight: '900' }}>{b.titulo}</Text>
+                  {b.subtitulo ? <Text style={{ color: '#F5E8F1', fontSize: 13 }} numberOfLines={2}>{b.subtitulo}</Text> : null}
+                </View>
+              </>
             )}
-            <LinearGradient colors={['rgba(0,0,0,0)', 'rgba(30,0,22,0.65)']} style={StyleSheet.absoluteFill} />
-            <View style={{ flex: 1, justifyContent: 'flex-end', padding: espaco.lg, gap: 2 }}>
-              <Text style={{ color: '#fff', fontSize: 20, fontWeight: '900' }}>{b.titulo}</Text>
-              {b.subtitulo ? <Text style={{ color: '#F5E8F1', fontSize: 13 }} numberOfLines={2}>{b.subtitulo}</Text> : null}
-            </View>
           </Pressable>
         ))}
       </ScrollView>

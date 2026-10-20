@@ -20,6 +20,7 @@
     "test": "node --no-warnings testes/rodar.mjs",
     "importar-artistas": "node scripts/importar-artistas.mjs",
     "importar-igrejas": "tsx scripts/importar-igrejas.mts",
+    "importar-conteudo": "tsx scripts/importar-conteudo.mts",
     "otimizar-imagens": "tsx scripts/otimizar-imagens.mts"
   },
   "devDependencies": {
