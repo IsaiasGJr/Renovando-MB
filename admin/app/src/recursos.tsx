@@ -276,10 +276,11 @@ export const RECURSOS: Record<string, Recurso> = {
       { nome: 'senha', rotulo: 'Senha', tipo: 'senha', ajuda: 'Mínimo de 8 caracteres. Ao editar, deixe em branco para manter.' },
       { nome: 'papel', rotulo: 'Papel', tipo: 'select', padrao: 'editor', opcoes: [{ valor: 'editor', rotulo: 'Editor' }, { valor: 'admin', rotulo: 'Administrador' }] },
       { nome: 'ativo', rotulo: 'Ativo', tipo: 'checkbox', padrao: true },
+      { nome: 'totpAtivo', rotulo: 'Verificação em duas etapas', tipo: 'checkbox', padrao: false, ajuda: 'Só a própria pessoa ativa (em Conta). Desmarque para desligar, se ela perdeu o celular.' },
     ],
     item: (l) => ({
       titulo: l.nome, sub: l.email, status: <Selo status={l.ativo ? 'ativo' : 'inativo'} />,
-      infos: [['Papel', l.papel === 'admin' ? 'Administrador' : 'Editor']],
+      infos: [['Papel', l.papel === 'admin' ? 'Administrador' : 'Editor'], ['2 etapas', l.totpAtivo ? 'Ativa' : 'Não']],
     }),
   },
 };

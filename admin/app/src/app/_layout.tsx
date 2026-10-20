@@ -53,6 +53,7 @@ export default function RootLayout() {
             <Stack.Screen name="sorteio" options={{ title: 'Sorteio', presentation: 'modal' }} />
             <Stack.Screen name="ofertantes" options={{ title: 'Ofertantes' }} />
             <Stack.Screen name="auditoria" options={{ title: 'Registro de atividades' }} />
+            <Stack.Screen name="avisos" options={{ title: 'Avisos no celular' }} />
           </Stack.Protected>
         </Stack>
       </QueryClientProvider>

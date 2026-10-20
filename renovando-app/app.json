@@ -34,7 +34,13 @@
         }
       ],
       "expo-image",
-      "expo-sharing"
+      "expo-sharing",
+      [
+        "expo-notifications",
+        {
+          "color": "#6E1A5D"
+        }
+      ]
     ],
     "scheme": "renovando",
     "primaryColor": "#5C0047"

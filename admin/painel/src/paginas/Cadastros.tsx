@@ -332,7 +332,7 @@ export function Ofertantes() {
 
 // ---------- Usuários do painel ----------
 
-type UsuarioAdmin = { id: string; nome: string; email: string; papel: string; ativo: boolean; criadoEm: string };
+type UsuarioAdmin = { id: string; nome: string; email: string; papel: string; ativo: boolean; totpAtivo: boolean; criadoEm: string };
 
 export function UsuariosAdmin() {
   return (
@@ -351,12 +351,14 @@ export function UsuariosAdmin() {
           opcoes: [{ valor: 'editor', rotulo: 'Editor' }, { valor: 'admin', rotulo: 'Administrador' }],
         },
         { nome: 'ativo', rotulo: 'Ativo', tipo: 'checkbox', padrao: true },
+        { nome: 'totpAtivo', rotulo: 'Verificação em duas etapas', tipo: 'checkbox', padrao: false, ajuda: 'Só a própria pessoa ativa (em Minha conta). Desmarque para desligar, se ela perdeu o celular.' },
       ]}
       colunas={[
         { titulo: 'Nome', render: (u) => u.nome },
         { titulo: 'E-mail', render: (u) => u.email },
         { titulo: 'Papel', render: (u) => (u.papel === 'admin' ? 'Administrador' : 'Editor') },
         { titulo: 'Status', render: (u) => <Selo status={u.ativo ? 'ativo' : 'inativo'} /> },
+        { titulo: '2 etapas', render: (u) => (u.totpAtivo ? 'Ativa' : '—') },
       ]}
     />
   );

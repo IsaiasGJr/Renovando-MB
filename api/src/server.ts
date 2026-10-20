@@ -3,7 +3,7 @@ import cors from 'cors';
 import express from 'express';
 import { fileURLToPath } from 'node:url';
 import { um } from '../../compartilhado/src/db.ts';
-import { expirarOfertasVencidas } from '../../compartilhado/src/dominio.ts';
+import { expirarOfertasVencidas, lembrarSorteios } from '../../compartilhado/src/dominio.ts';
 import { provedorPix } from '../../compartilhado/src/pagamentos.ts';
 import { semear } from '../../compartilhado/src/seed.ts';
 import { cabecalhosSeguranca, semCache, servirUploads } from '../../compartilhado/src/seguranca.ts';
@@ -77,6 +77,9 @@ setInterval(() => {
     // banco ocupado: tenta na próxima rodada
   }
 }, 5 * 60_000).unref();
+
+// Lembrete do sorteio na véspera (confere de hora em hora; cada prêmio avisa uma vez só).
+setInterval(() => void lembrarSorteios().catch(() => {}), 60 * 60_000).unref();
 
 app.listen(env.porta, '0.0.0.0', () => {
   console.log(`API do app em http://localhost:${env.porta}/api (${env.dev ? 'desenvolvimento' : 'produção'}, PIX: ${provedorPix().nome})`);

@@ -3,6 +3,7 @@ import { router, type Href } from 'expo-router';
 import type { ComponentProps } from 'react';
 import { Alert, Linking, Platform, Pressable, Text, View } from 'react-native';
 import { api } from '@/api';
+import { ConviteAvisos } from '@/components/ConviteAvisos';
 import { Botao, Cartao, Tela, Titulo } from '@/components/ui';
 import { CONTATO_EMAIL, CONTATO_WHATSAPP } from '@/config';
 import { useAuth } from '@/store/auth';
@@ -64,6 +65,8 @@ ${texto}`)) await confirmar();
         <Botao titulo="Entrar com WhatsApp" icone="logo-whatsapp"
           onPress={() => router.push({ pathname: '/login', params: { voltar: '/perfil' } })} />
       )}
+
+      <ConviteAvisos />
 
       <Grupo titulo="O projeto" itens={[
         ['information-circle-outline', 'Conheça o projeto', '/projeto'],

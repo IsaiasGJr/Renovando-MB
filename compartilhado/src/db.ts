@@ -241,6 +241,20 @@ garantirColuna('campanhas', 'imagem_cupom', "TEXT NOT NULL DEFAULT ''");
 garantirColuna('ofertas', 'id_gateway', 'TEXT');
 garantirColuna('ofertas', 'qr_code', "TEXT NOT NULL DEFAULT ''");
 db.exec('CREATE INDEX IF NOT EXISTS ofertas_id_gateway ON ofertas(id_gateway)');
+// Lembrete automático do sorteio (enviado uma vez, na véspera).
+garantirColuna('premios', 'lembrete_enviado_em', 'TEXT');
+// Verificação em duas etapas do admin (código do aplicativo autenticador). O segredo fica cifrado.
+garantirColuna('admins', 'totp_segredo', "TEXT NOT NULL DEFAULT ''");
+garantirColuna('admins', 'totp_ativo', 'INTEGER NOT NULL DEFAULT 0');
+garantirColuna('admins', 'totp_ultimo_passo', 'INTEGER NOT NULL DEFAULT -1');
+// Celulares que aceitaram receber avisos (token do serviço de notificações da Expo).
+db.exec(`CREATE TABLE IF NOT EXISTS dispositivos (
+  token TEXT PRIMARY KEY,
+  usuario_id TEXT,
+  plataforma TEXT NOT NULL DEFAULT '',
+  atualizado_em TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+)`);
+db.exec('CREATE INDEX IF NOT EXISTS dispositivos_usuario ON dispositivos(usuario_id)');
 
 db.exec(`
 CREATE TABLE IF NOT EXISTS banners (

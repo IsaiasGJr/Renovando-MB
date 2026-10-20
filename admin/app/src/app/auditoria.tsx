@@ -17,12 +17,13 @@ type Pagina = { total: number; pagina: number; porPagina: number; linhas: Regist
 const ROTULO_ACAO: Record<string, string> = {
   criar: 'Criou', editar: 'Editou', excluir: 'Excluiu', ativar: 'Ativou', sortear: 'Sorteou',
   desfazer_sorteio: 'Desfez sorteio', login: 'Entrou', login_falhou: 'Login recusado',
-  exportar: 'Exportou', encerrar_sessoes: 'Saiu de todos os aparelhos',
+  exportar: 'Exportou', encerrar_sessoes: 'Saiu de todos os aparelhos', enviar_aviso: 'Enviou aviso',
+  ativar_2fa: 'Ativou verificação em 2 etapas', desativar_2fa: 'Desativou verificação em 2 etapas', login_2fa_falhou: 'Código de login recusado',
 };
 const ROTULO_RECURSO: Record<string, string> = {
   igrejas: 'Igreja', semeadores: 'Semeador', campanhas: 'Campanha', premios: 'Prêmio', noticias: 'Notícia',
   depoimentos: 'Depoimento', faqs: 'Pergunta', artistas: 'Artista', 'solicitacoes-show': 'Pedido de show',
-  admins: 'Usuário do admin', sessao: 'Sessão', upload: 'Imagem', conta: 'Conta de ofertante', relatorios: 'Relatório',
+  admins: 'Usuário do admin', sessao: 'Sessão', upload: 'Imagem', conta: 'Conta de ofertante', relatorios: 'Relatório', avisos: 'Aviso no celular',
 };
 const STATUS_ACAO: Record<string, string> = { login_falhou: 'rejeitada', excluir: 'rejeitada', editar: 'pendente' };
 

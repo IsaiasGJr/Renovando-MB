@@ -9,33 +9,52 @@ import { atualizar, executar, inserir, PASTA_ANEXOS, PASTA_UPLOADS, todos, trans
 import { formatarCampanha, sortearPremio, type Divisao } from '../../../../compartilhado/src/dominio.ts';
 import { ErroHttp, naoEncontrado, novoId, param, query, slugify, slugUnico, soDigitos, validar } from '../../../../compartilhado/src/util.ts';
 import { diferenca, registrar, type Acao } from '../../../../compartilhado/src/auditoria.ts';
-import { cifrarCampos, decifrar, decifrarCampos, indice } from '../../../../compartilhado/src/cripto.ts';
+import { cifrar, cifrarCampos, decifrar, decifrarCampos, indice } from '../../../../compartilhado/src/cripto.ts';
 import { celulaCsv, ehImagemValida, limitar, TIPOS_IMAGEM, zerarLimite } from '../../../../compartilhado/src/seguranca.ts';
+import { enviarAviso } from '../../../../compartilhado/src/avisos.ts';
+import QRCode from 'qrcode';
 import { assinar, exigirAdmin, somenteAdmin } from '../auth.ts';
+import { env } from '../env.ts';
+import { conferirCodigoTotp, enderecoOtpauth, novoSegredo } from '../totp.ts';
 
 export const admin = Router();
 
 // ---------- Login ----------
 
 admin.post('/login', (req, res) => {
-  const { email, senha } = validar(z.object({ email: z.string().trim().toLowerCase(), senha: z.string() }), req.body);
+  const { email, senha, codigo } = validar(
+    z.object({ email: z.string().trim().toLowerCase(), senha: z.string(), codigo: z.string().trim().optional() }),
+    req.body,
+  );
   // Contra tentativa e erro: 10 por IP e 5 por e-mail a cada 15 minutos.
   limitar(`login-ip:${req.ip}`, 10, 15 * 60_000);
   limitar(`login-email:${email}`, 5, 15 * 60_000, 'Muitas tentativas para este e-mail. Aguarde 15 minutos.');
-  const a = um<{ id: string; nome: string; email: string; senhaHash: string; papel: 'admin' | 'editor'; ativo: number; sessaoVersao: number }>(
-    'SELECT * FROM admins WHERE lower(email) = ?',
-    email,
-  );
+  const a = um<{
+    id: string; nome: string; email: string; senhaHash: string; papel: 'admin' | 'editor'; ativo: number; sessaoVersao: number;
+    totpAtivo: number; totpSegredo: string; totpUltimoPasso: number;
+  }>('SELECT * FROM admins WHERE lower(email) = ?', email);
   if (!a || !a.ativo || !bcrypt.compareSync(senha, a.senhaHash)) {
     registrar({ admin: a ? { id: a.id, nome: a.nome } : null, acao: 'login_falhou', recurso: 'sessao', resumo: email, ip: req.ip });
     throw new ErroHttp(401, 'E-mail ou senha incorretos.');
+  }
+  // Segunda etapa: depois da senha certa, pede o código de 6 dígitos do aplicativo autenticador.
+  if (a.totpAtivo) {
+    if (!codigo) return void res.json({ precisaCodigo: true });
+    const passo = conferirCodigoTotp(decifrar(a.totpSegredo), codigo.replace(/\D/g, ''), a.totpUltimoPasso);
+    if (passo === null) {
+      registrar({ admin: a, acao: 'login_2fa_falhou', recurso: 'sessao', resumo: email, ip: req.ip });
+      throw new ErroHttp(401, 'Código de verificação incorreto ou vencido.');
+    }
+    // O mesmo código não serve duas vezes.
+    executar('UPDATE admins SET totp_ultimo_passo = ? WHERE id = ?', passo, a.id);
   }
   zerarLimite(`login-ip:${req.ip}`);
   zerarLimite(`login-email:${email}`);
   registrar({ admin: a, acao: 'login', recurso: 'sessao', ip: req.ip });
   res.json({
     token: assinar({ sub: a.id, papel: a.papel, v: a.sessaoVersao }),
-    admin: { id: a.id, nome: a.nome, email: a.email, papel: a.papel },
+    admin: { id: a.id, nome: a.nome, email: a.email, papel: a.papel, totpAtivo: !!a.totpAtivo },
+    configurar2fa: env.doisFatoresObrigatorio && !a.totpAtivo,
   });
 });
 
@@ -53,7 +72,63 @@ function soEnviados(dados: Record<string, unknown>, corpo: unknown) {
 admin.use(exigirAdmin);
 
 admin.get('/me', (req, res) => {
-  res.json(um('SELECT id, nome, email, papel FROM admins WHERE id = ?', req.admin!.id));
+  const a = um<{ totpAtivo: number }>('SELECT id, nome, email, papel, totp_ativo FROM admins WHERE id = ?', req.admin!.id)!;
+  res.json({ ...a, totpAtivo: !!a.totpAtivo, doisFatoresObrigatorio: env.doisFatoresObrigatorio });
+});
+
+// ---------- Verificação em duas etapas (aplicativo autenticador) ----------
+
+const conferirSenha = (id: string, senha: string) => {
+  const a = um<{ senhaHash: string }>('SELECT senha_hash FROM admins WHERE id = ?', id);
+  if (!a || !bcrypt.compareSync(senha, a.senhaHash)) throw new ErroHttp(401, 'Senha incorreta.');
+};
+
+// 1) Gera o segredo e o QR Code (ainda não vale para o login).
+admin.post('/me/2fa/iniciar', async (req, res) => {
+  const { senha } = validar(z.object({ senha: z.string() }), req.body);
+  limitar(`2fa:${req.admin!.id}`, 10, 15 * 60_000);
+  conferirSenha(req.admin!.id, senha);
+  const a = um<{ email: string; totpAtivo: number }>('SELECT email, totp_ativo FROM admins WHERE id = ?', req.admin!.id)!;
+  if (a.totpAtivo) throw new ErroHttp(409, 'A verificação em duas etapas já está ativa.');
+  const segredo = novoSegredo();
+  executar('UPDATE admins SET totp_segredo = ?, totp_ultimo_passo = -1 WHERE id = ?', cifrar(segredo), req.admin!.id);
+  const otpauth = enderecoOtpauth(segredo, a.email);
+  res.json({ segredo, otpauth, qrCode: await QRCode.toDataURL(otpauth, { margin: 1, width: 240, color: { dark: '#36002A' } }) });
+});
+
+// 2) Confirma com o primeiro código do aplicativo: a partir daí o login pede o código.
+admin.post('/me/2fa/ativar', (req, res) => {
+  const { codigo } = validar(z.object({ codigo: z.string().trim() }), req.body);
+  limitar(`2fa:${req.admin!.id}`, 10, 15 * 60_000);
+  const a = um<{ totpSegredo: string; sessaoVersao: number; papel: 'admin' | 'editor' }>(
+    'SELECT totp_segredo, sessao_versao, papel FROM admins WHERE id = ?', req.admin!.id,
+  )!;
+  if (!a.totpSegredo) throw new ErroHttp(400, 'Comece pelo passo 1 (gerar o QR Code).');
+  const passo = conferirCodigoTotp(decifrar(a.totpSegredo), codigo.replace(/\D/g, ''));
+  if (passo === null) throw new ErroHttp(400, 'Código incorreto. Confira o horário do celular e tente o código atual.');
+  // Ativar derruba as outras sessões abertas (que entraram sem o código); esta continua com um token novo.
+  const versao = a.sessaoVersao + 1;
+  executar('UPDATE admins SET totp_ativo = 1, totp_ultimo_passo = ?, sessao_versao = ? WHERE id = ?', passo, versao, req.admin!.id);
+  auditar(req, 'ativar_2fa', 'sessao', req.admin!.id, 'Verificação em duas etapas ativada');
+  res.json({ ok: true, token: assinar({ sub: req.admin!.id, papel: a.papel, v: versao }) });
+});
+
+// Desligar exige a senha e um código atual (quem roubou só a senha não consegue).
+admin.post('/me/2fa/desativar', (req, res) => {
+  const { senha, codigo } = validar(z.object({ senha: z.string(), codigo: z.string().trim() }), req.body);
+  limitar(`2fa:${req.admin!.id}`, 10, 15 * 60_000);
+  conferirSenha(req.admin!.id, senha);
+  const a = um<{ totpSegredo: string; totpAtivo: number; totpUltimoPasso: number }>(
+    'SELECT totp_segredo, totp_ativo, totp_ultimo_passo FROM admins WHERE id = ?', req.admin!.id,
+  )!;
+  if (!a.totpAtivo) throw new ErroHttp(400, 'A verificação em duas etapas não está ativa.');
+  if (env.doisFatoresObrigatorio) throw new ErroHttp(403, 'A verificação em duas etapas é obrigatória neste sistema.');
+  if (conferirCodigoTotp(decifrar(a.totpSegredo), codigo.replace(/\D/g, ''), a.totpUltimoPasso) === null) {
+    throw new ErroHttp(400, 'Código incorreto.');
+  }
+  executar("UPDATE admins SET totp_ativo = 0, totp_segredo = '', totp_ultimo_passo = -1 WHERE id = ?", req.admin!.id);
+  auditar(req, 'desativar_2fa', 'sessao', req.admin!.id, 'Verificação em duas etapas desativada');
+  res.json({ ok: true });
 });
 
 // ---------- Upload de imagens ----------
@@ -304,6 +379,14 @@ admin.post('/premios/:id/sortear', somenteAdmin, (req, res) => {
   auditar(req, 'sortear', 'premios', param(req, 'id'), String(r.nome), {
     modo: numero ? 'numero informado' : 'aleatorio', numero: r.ganhadorNumero, ganhador: r.ganhadorNome,
   });
+  // Avisos no celular: o resultado para todos e uma mensagem especial para quem ganhou (sem esperar o envio).
+  const ganhador = um<{ usuarioId: string }>('SELECT usuario_id FROM cupons WHERE id = ?', String(r.ganhadorCupomId));
+  void (async () => {
+    if (ganhador?.usuarioId) {
+      await enviarAviso({ titulo: 'Parabéns! Você foi sorteado!', mensagem: `Seu número da sorte ${r.ganhadorNumero} ganhou: ${r.nome}. Nossa equipe vai falar com você pelo WhatsApp.`, rota: '/cupons' }, [ganhador.usuarioId]);
+    }
+    await enviarAviso({ titulo: `Resultado do sorteio: ${r.nome}`, mensagem: `Número sorteado: ${r.ganhadorNumero} (${r.ganhadorNome}, ${r.ganhadorCidade}). Boa sorte nos próximos!`, rota: '/premios' });
+  })().catch(() => {});
   res.json(r);
 });
 admin.post('/premios/:id/desfazer-sorteio', somenteAdmin, (req, res) => {
@@ -566,17 +649,23 @@ crud(
     tabela: 'admins',
     rotulo: (l) => String(l.email),
     ordem: 'nome',
-    booleanos: ['ativo'],
-    ocultar: ['senhaHash'],
+    booleanos: ['ativo', 'totpAtivo'],
+    ocultar: ['senhaHash', 'totpSegredo', 'totpUltimoPasso'],
     schema: z.object({
       nome: texto(2),
       email: z.string().trim().toLowerCase().email(),
       senha: z.string().min(8, 'mínimo de 8 caracteres').optional(),
       papel: z.enum(['admin', 'editor']).default('editor'),
       ativo: z.boolean().default(true),
+      // Só dá para DESLIGAR por aqui (ex.: a pessoa perdeu o celular). Ligar, só ela mesma em Minha conta.
+      totpAtivo: z.boolean().optional(),
     }),
     antesDeSalvar: (d, req, id) => {
-      const { senha, ...resto } = d as { senha?: string };
+      const { senha, totpAtivo: pedido, ...resto } = d as { senha?: string; totpAtivo?: boolean };
+      // Marcar não liga nada (quem liga é a própria pessoa); desmarcar desliga e apaga o segredo.
+      const ligado = id ? !!um<{ totpAtivo: number }>('SELECT totp_ativo FROM admins WHERE id = ?', id)?.totpAtivo : false;
+      const totpAtivo = pedido === false && ligado ? false : undefined;
+      if (totpAtivo === false) Object.assign(resto, { totpAtivo: false, totpSegredo: '', totpUltimoPasso: -1 });
       if (!id && !senha) throw new ErroHttp(400, 'Informe uma senha para o novo usuário.');
       if (id === req.admin!.id && (resto as { ativo?: boolean }).ativo === false) {
         throw new ErroHttp(400, 'Você não pode desativar o próprio usuário.');
@@ -585,7 +674,7 @@ crud(
       if (id) {
         const atual = um<{ papel: string; ativo: number; sessaoVersao: number }>('SELECT papel, ativo, sessao_versao FROM admins WHERE id = ?', id);
         const r = resto as { papel?: string; ativo?: boolean };
-        const mudouAcesso = !!senha || r.ativo === false || (r.papel !== undefined && r.papel !== atual?.papel);
+        const mudouAcesso = !!senha || r.ativo === false || totpAtivo === false || (r.papel !== undefined && r.papel !== atual?.papel);
         if (atual && mudouAcesso) saida.sessaoVersao = atual.sessaoVersao + 1;
       }
       return saida;
@@ -593,6 +682,31 @@ crud(
   },
   somenteAdmin,
 );
+
+// ---------- Avisos no celular ----------
+
+admin.get('/avisos', somenteAdmin, (_req, res) => {
+  res.json({
+    dispositivos: um<{ n: number }>('SELECT COUNT(*) AS n FROM dispositivos')!.n,
+    comLogin: um<{ n: number }>('SELECT COUNT(*) AS n FROM dispositivos WHERE usuario_id IS NOT NULL')!.n,
+    enviados: todos("SELECT admin_nome, resumo, detalhes, criado_em FROM auditoria WHERE acao = 'enviar_aviso' ORDER BY criado_em DESC LIMIT 20")
+      .map((l) => ({ ...l, detalhes: JSON.parse(String((l as { detalhes: string }).detalhes || '{}')) })),
+  });
+});
+
+const ROTAS_AVISO = ['/', '/premios', '/cupons', '/igrejas', '/noticias', '/shows', '/palmas-para-jesus'] as const;
+admin.post('/avisos', somenteAdmin, async (req, res) => {
+  const d = validar(z.object({
+    titulo: z.string().trim().min(3).max(65),
+    mensagem: z.string().trim().min(5).max(240),
+    rota: z.enum(ROTAS_AVISO).optional(),
+  }), req.body);
+  // Aviso chega no celular de todo mundo: no máximo 5 por hora.
+  limitar(`avisos:${req.admin!.id}`, 5, 60 * 60_000, 'Limite de avisos atingido (5 por hora). Tente mais tarde.');
+  const r = await enviarAviso(d);
+  auditar(req, 'enviar_aviso', 'avisos', null, d.titulo, { ...d, ...r });
+  res.json(r);
+});
 
 // ---------- Relatórios ----------
 

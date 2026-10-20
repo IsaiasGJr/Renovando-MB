@@ -33,8 +33,8 @@ export function exigirAdmin(req: Request, _res: Response, next: NextFunction) {
   }
   if (!t) throw new ErroHttp(401, 'Sessão expirada. Entre novamente.');
   // Usuário desativado perde o acesso na hora, mesmo com token válido.
-  const atual = um<{ ativo: number; papel: Papel; nome: string; sessaoVersao: number }>(
-    'SELECT ativo, papel, nome, sessao_versao FROM admins WHERE id = ?',
+  const atual = um<{ ativo: number; papel: Papel; nome: string; sessaoVersao: number; totpAtivo: number }>(
+    'SELECT ativo, papel, nome, sessao_versao, totp_ativo FROM admins WHERE id = ?',
     t.sub,
   );
   if (!atual?.ativo) throw new ErroHttp(401, 'Acesso desativado.');
@@ -42,6 +42,10 @@ export function exigirAdmin(req: Request, _res: Response, next: NextFunction) {
   if (atual.sessaoVersao !== (t.v ?? 0)) throw new ErroHttp(401, 'Sua sessão foi encerrada. Entre novamente.');
   // O papel vem do banco (não do token): rebaixar alguém vale na hora.
   req.admin = { id: t.sub, nome: atual.nome, papel: atual.papel };
+  // Com a verificação em duas etapas obrigatória, quem ainda não ativou só acessa a própria conta (/me...).
+  if (env.doisFatoresObrigatorio && !atual.totpAtivo && !req.path.startsWith('/me')) {
+    throw new ErroHttp(403, 'Ative a verificação em duas etapas (Minha conta) para continuar.');
+  }
   next();
 }
 

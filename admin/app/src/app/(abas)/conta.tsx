@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { Alert, Platform, Text } from 'react-native';
 import { BASE_URL } from '@/api';
 import { Info } from '@/components/admin';
+import { DuasEtapas } from '@/components/DuasEtapas';
 import { Botao, Cartao, Tela } from '@/components/ui';
 import { useSessao } from '@/store/sessao';
 import { cores } from '@/theme';
@@ -29,6 +30,7 @@ export default function Conta() {
         <Info rotulo="Papel">{admin?.papel === 'admin' ? 'Administrador' : 'Editor'}</Info>
         <Info rotulo="Servidor">{BASE_URL}</Info>
       </Cartao>
+      <DuasEtapas />
       {admin?.papel === 'admin' ? (
         <Botao titulo="Trocar senha / gerenciar usuários" variante="contorno" icone="key-outline"
           onPress={() => router.push({ pathname: '/[recurso]', params: { recurso: 'admins' } })} />

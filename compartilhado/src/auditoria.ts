@@ -3,7 +3,8 @@ import { novoId } from './util.ts';
 
 export type Acao =
   | 'criar' | 'editar' | 'excluir' | 'ativar' | 'sortear' | 'desfazer_sorteio'
-  | 'login' | 'login_falhou' | 'exportar' | 'encerrar_sessoes';
+  | 'login' | 'login_falhou' | 'exportar' | 'encerrar_sessoes' | 'enviar_aviso'
+  | 'ativar_2fa' | 'desativar_2fa' | 'login_2fa_falhou';
 
 /** Campos que nunca vão para o registro (mesmo que mudem). */
 const OCULTOS = new Set(['senha', 'senhaHash']);

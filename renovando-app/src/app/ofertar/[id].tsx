@@ -12,6 +12,7 @@ import { useAuth } from '@/store/auth';
 import { useRascunhoOferta } from '@/store/oferta';
 import { cores, espaco } from '@/theme';
 import { moeda } from '@/utils/format';
+import { ConviteAvisos } from '@/components/ConviteAvisos';
 
 function irPara(rota: '/' | '/cupons') {
   if (router.canDismiss()) router.dismissAll();
@@ -63,7 +64,10 @@ export default function Pagamento() {
           </Text>
         </View>
         {!oferta.anonima ? (
-          <Botao titulo="Ver meus cupons" icone="ticket" onPress={() => irPara('/cupons')} />
+          <>
+            <ConviteAvisos texto="Quer saber na hora se um dos seus números foi sorteado? Ative os avisos." />
+            <Botao titulo="Ver meus cupons" icone="ticket" onPress={() => irPara('/cupons')} />
+          </>
         ) : null}
         <Botao titulo="Voltar ao início" variante="contorno" onPress={() => irPara('/')} />
       </Tela>

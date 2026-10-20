@@ -14,6 +14,8 @@ export const env = {
   /** Atrás de um proxy (Nginx, Cloudflare...), defina TRUST_PROXY=1 para o limite por IP funcionar. */
   trustProxy: process.env.TRUST_PROXY === '1',
   /** Build do painel (admin/painel/dist), servido por este mesmo servidor em produção. */
+  /** ADMIN_2FA_OBRIGATORIO=1: quem não ativou a verificação em duas etapas só consegue ativá-la (mais nada). */
+  doisFatoresObrigatorio: process.env.ADMIN_2FA_OBRIGATORIO === '1',
   pastaPainel: process.env.PAINEL_DIST ?? fileURLToPath(new URL('../../painel/dist/', import.meta.url)),
 };
 

@@ -16,6 +16,7 @@ import {
 } from '../../../compartilhado/src/dominio.ts';
 import { registrar } from '../../../compartilhado/src/auditoria.ts';
 import { provedorPix } from '../../../compartilhado/src/pagamentos.ts';
+import { TOKEN_VALIDO } from '../../../compartilhado/src/avisos.ts';
 import { dataEmissao, gerarImagemCupom } from '../../../compartilhado/src/cupom.ts';
 import { cifrar, indice } from '../../../compartilhado/src/cripto.ts';
 import { cachePublico, limitar, limitePorIp } from '../../../compartilhado/src/seguranca.ts';
@@ -431,6 +432,26 @@ publico.get('/me/painel', exigirUsuario, (req, res) => {
     semeador = { ...s, igrejas: lista, volume, comissao: Math.round(volume * percentuais.semeador) / 100, semeadoresIndicados: indicados };
   }
   res.json({ igrejas, semeador, percentuais });
+});
+
+// ---------- Avisos no celular ----------
+
+// O celular se cadastra quando a pessoa aceita receber avisos (com ou sem login).
+publico.post('/dispositivos', limitePorIp('dispositivo', 30, 15 * MIN), usuarioOpcional, (req, res) => {
+  const d = validar(z.object({ token: z.string().regex(TOKEN_VALIDO, 'token inválido'), plataforma: z.enum(['ios', 'android']) }), req.body);
+  executar(
+    `INSERT INTO dispositivos (token, usuario_id, plataforma) VALUES (?, ?, ?)
+     ON CONFLICT(token) DO UPDATE SET usuario_id = excluded.usuario_id, plataforma = excluded.plataforma,
+       atualizado_em = strftime('%Y-%m-%dT%H:%M:%fZ','now')`,
+    d.token, req.usuarioId ?? null, d.plataforma,
+  );
+  res.status(201).json({ ok: true });
+});
+
+publico.delete('/dispositivos', (req, res) => {
+  const { token } = validar(z.object({ token: z.string().regex(TOKEN_VALIDO, 'token inválido') }), req.body);
+  executar('DELETE FROM dispositivos WHERE token = ?', token);
+  res.json({ ok: true });
 });
 
 // Sair de todos os aparelhos: invalida todos os logins desta conta (inclusive o atual).

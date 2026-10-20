@@ -59,6 +59,7 @@ export default function Cadastros() {
 
       {ehAdmin ? (
         <Grupo titulo="Sistema">
+          <ItemMenu icone="notifications-outline" texto="Avisos no celular" onPress={() => router.push('/avisos')} />
           {item('admins')}
           {item('paginas')}
           <ItemMenu icone="list-outline" texto="Registro de atividades" onPress={() => router.push('/auditoria')} />

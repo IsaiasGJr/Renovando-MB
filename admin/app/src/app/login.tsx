@@ -12,10 +12,15 @@ export default function Login() {
   const entrarNaSessao = useSessao((s) => s.entrar);
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
+  // Segunda etapa: depois da senha certa, o servidor pede o código do aplicativo autenticador.
+  const [pedeCodigo, setPedeCodigo] = useState(false);
+  const [codigo, setCodigo] = useState('');
 
   const entrar = useMutation({
-    mutationFn: () => api<{ token: string; admin: Admin }>('/login', { method: 'POST', json: { email, senha } }),
-    onSuccess: entrarNaSessao,
+    mutationFn: () => api<{ token?: string; admin?: Admin; precisaCodigo?: boolean }>('/login', {
+      method: 'POST', json: { email, senha, ...(pedeCodigo ? { codigo } : {}) },
+    }),
+    onSuccess: (r) => (r.precisaCodigo ? setPedeCodigo(true) : entrarNaSessao({ token: r.token!, admin: r.admin! })),
   });
 
   return (
@@ -35,7 +40,13 @@ export default function Login() {
               autoComplete="email" textContentType="username" />
             <Campo rotulo="Senha" value={senha} onChangeText={setSenha} secureTextEntry autoComplete="current-password"
               textContentType="password" onSubmitEditing={() => entrar.mutate()} />
-            <Botao titulo="Entrar" onPress={() => entrar.mutate()} carregando={entrar.isPending} desabilitado={!email || !senha} />
+            {pedeCodigo ? (
+              <Campo rotulo="Código do aplicativo autenticador" value={codigo} keyboardType="number-pad" autoFocus
+                autoComplete="one-time-code" textContentType="oneTimeCode" placeholder="000000"
+                onChangeText={(t) => setCodigo(t.replace(/\D/g, '').slice(0, 6))} onSubmitEditing={() => entrar.mutate()} />
+            ) : null}
+            <Botao titulo={pedeCodigo ? 'Confirmar código' : 'Entrar'} onPress={() => entrar.mutate()} carregando={entrar.isPending}
+              desabilitado={!email || !senha || (pedeCodigo && codigo.length !== 6)} />
           </View>
 
           <Text style={{ color: '#C9A9BD', fontSize: 12, textAlign: 'center' }}>Servidor: {BASE_URL}</Text>

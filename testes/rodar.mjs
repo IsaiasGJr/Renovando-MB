@@ -4,7 +4,7 @@
 // Os testes nunca mexem em igrejas reais: cada um cria a sua igreja temporária e apaga tudo no fim.
 // Recusa rodar se a API não estiver em modo de teste (NODE_ENV=development), para nunca tocar em produção.
 import { spawnSync } from 'node:child_process';
-import { rmSync } from 'node:fs';
+import { existsSync, rmSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -33,13 +33,17 @@ const suites = [
   ['cripto', [envAdmin, banco]],
   ['seg2', [envAdmin, dados]],
   ['upload', [envAdmin, raiz]],
+  ['producao', [envAdmin, banco]],
 ];
 
 const inicio = new Date().toISOString();
 let falhou = 0;
 for (const [nome, args] of suites) {
   zerarLimites();
-  const r = spawnSync(process.execPath, ['--no-warnings', join(pasta, `${nome}.mjs`), ...args], { encoding: 'utf8' });
+  // Os testes .mts usam o código TypeScript direto (rodam com o tsx).
+  const ts = existsSync(join(pasta, `${nome}.mts`));
+  const arquivo = join(pasta, `${nome}.${ts ? 'mts' : 'mjs'}`);
+  const r = spawnSync(process.execPath, ['--no-warnings', ...(ts ? ['--import', 'tsx'] : []), arquivo, ...args], { encoding: 'utf8', cwd: raiz });
   const saida = `${r.stdout}${r.stderr}`;
   const resumo = saida.match(/(\d+) ok, (\d+) falha/);
   const ok = r.status === 0 && resumo && resumo[2] === '0';

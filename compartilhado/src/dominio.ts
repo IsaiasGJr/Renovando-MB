@@ -1,5 +1,6 @@
 import { randomInt } from 'node:crypto';
 import { executar, inserir, todos, transacao, um } from './db.ts';
+import { enviarAviso } from './avisos.ts';
 import { provedorPix } from './pagamentos.ts';
 import { ErroHttp, naoEncontrado, novoId } from './util.ts';
 
@@ -179,6 +180,27 @@ export function cupomParaImagem(usuarioId: string, cupomId: string) {
   return c;
 }
 
+/**
+ * Lembrete do sorteio na véspera: para prêmios da campanha ativa com sorteio nas próximas 24 h,
+ * avisa todos os celulares uma única vez. Roda de hora em hora na API.
+ */
+export async function lembrarSorteios() {
+  const proximos = todos<{ id: string; nome: string; dataSorteio: string }>(
+    `SELECT p.id, p.nome, p.data_sorteio FROM premios p JOIN campanhas c ON c.id = p.campanha_id
+      WHERE c.ativa = 1 AND p.ganhador_cupom_id IS NULL AND p.lembrete_enviado_em IS NULL`,
+  ).filter((p) => {
+    const falta = new Date(p.dataSorteio).getTime() - Date.now();
+    return falta > 0 && falta <= 24 * 3_600_000;
+  });
+  for (const p of proximos) {
+    // Marca antes de enviar: se o servidor reiniciar no meio, ninguém recebe o aviso duas vezes.
+    executar("UPDATE premios SET lembrete_enviado_em = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = ?", p.id);
+    const hora = new Date(p.dataSorteio).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' });
+    await enviarAviso({ titulo: 'Amanhã tem sorteio!', mensagem: `${p.nome}: sorteio às ${hora}. Confira seus números da sorte no app.`, rota: '/cupons' });
+  }
+  return proximos.length;
+}
+
 /** Marca como expiradas as cobranças vencidas sem pagamento (roda de tempos em tempos na API). */
 export function expirarOfertasVencidas() {
   return executar(
@@ -199,6 +221,7 @@ export function excluirConta(usuarioId: string) {
     );
     if (!u || u.excluidoEm) throw naoEncontrado('Conta');
     executar('DELETE FROM otps WHERE whatsapp = ?', u.whatsappIndice);
+    executar('DELETE FROM dispositivos WHERE usuario_id = ?', usuarioId);
     executar(
       `UPDATE usuarios SET nome = 'Conta excluída', sobrenome = '', whatsapp = ?, whatsapp_indice = ?,
               excluido_em = strftime('%Y-%m-%dT%H:%M:%fZ','now')

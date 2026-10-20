@@ -3,7 +3,7 @@ import { lazy, Suspense, useEffect, useState, type FormEvent } from 'react';
 import { Navigate, NavLink, Outlet, Route, Routes, useNavigate } from 'react-router-dom';
 import {
   BarChart3, Building2, ClipboardList, Flag, Gift, HelpCircle, LayoutDashboard, LogOut,
-  MessageSquareQuote, Music, Newspaper, ShieldCheck, Sprout, Users, ImageIcon, Handshake, Images, Inbox, Scale,
+  MessageSquareQuote, Music, Newspaper, ShieldCheck, Sprout, Users, ImageIcon, Handshake, Images, Inbox, Bell, Scale,
 } from './componentes/icones';
 import { Simbolo } from './componentes/Marca';
 import { api, lerSessao, salvarSessao, type Admin } from './api';
@@ -13,6 +13,8 @@ import { useDashboard } from './consultas';
 // Cada página vira um arquivo separado, baixado só quando é aberta:
 // o login e o menu abrem rápido e os gráficos (Recharts) só carregam quando precisam.
 const Auditoria = lazy(() => import('./paginas/Auditoria'));
+const Avisos = lazy(() => import('./paginas/Avisos'));
+const MinhaConta = lazy(() => import('./paginas/MinhaConta'));
 const Campanhas = lazy(() => import('./paginas/Campanhas'));
 const Dashboard = lazy(() => import('./paginas/Dashboard'));
 const Premios = lazy(() => import('./paginas/Premios'));
@@ -51,6 +53,8 @@ export default function App() {
         <Route path="shows" element={<Shows />} />
         <Route path="usuarios" element={<UsuariosAdmin />} />
         <Route path="auditoria" element={<Auditoria />} />
+        <Route path="avisos" element={<Avisos />} />
+        <Route path="conta" element={<MinhaConta />} />
         <Route path="banners" element={<Banners />} />
         <Route path="parceiros" element={<Parceiros />} />
         <Route path="galeria" element={<GaleriaPalmas />} />
@@ -133,17 +137,20 @@ function Layout({ admin }: { admin: Admin }) {
         {ehAdmin ? (
           <>
             <div className="grupo">Sistema</div>
+            {link('/avisos', 'Avisos no celular', Bell)}
             {link('/usuarios', 'Usuários do painel', ShieldCheck)}
             {link('/paginas', 'Páginas legais', Scale)}
             {link('/auditoria', 'Registro de atividades', ClipboardList)}
           </>
         ) : null}
         <div className="rodape">
-          <span className="avatar" aria-hidden="true">{admin.nome.charAt(0).toUpperCase()}</span>
-          <div className="quem">
-            <strong>{admin.nome}</strong>
-            <span>{admin.papel === 'admin' ? 'Administrador' : 'Editor'}</span>
-          </div>
+          <NavLink to="/conta" className="quem-link" onClick={() => setMenuAberto(false)} title="Minha conta">
+            <span className="avatar" aria-hidden="true">{admin.nome.charAt(0).toUpperCase()}</span>
+            <div className="quem">
+              <strong>{admin.nome}</strong>
+              <span>{admin.papel === 'admin' ? 'Administrador' : 'Editor'} · Minha conta</span>
+            </div>
+          </NavLink>
           <button onClick={() => (salvarSessao(null), navigate('/login'))} aria-label="Sair" title="Sair"><LogOut size={18} /></button>
         </div>
       </nav>
@@ -160,9 +167,19 @@ function Login() {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
+  // Segunda etapa: depois da senha certa, o servidor pede o código do aplicativo autenticador.
+  const [pedeCodigo, setPedeCodigo] = useState(false);
+  const [codigo, setCodigo] = useState('');
   const entrar = useMutation({
-    mutationFn: () => api<{ token: string; admin: Admin }>('/login', { method: 'POST', json: { email, senha } }),
-    onSuccess: (s) => (salvarSessao(s), navigate('/', { replace: true })),
+    mutationFn: () =>
+      api<{ token?: string; admin?: Admin; precisaCodigo?: boolean; configurar2fa?: boolean }>('/login', {
+        method: 'POST', json: { email, senha, ...(pedeCodigo ? { codigo } : {}) },
+      }),
+    onSuccess: (s) => {
+      if (s.precisaCodigo) return setPedeCodigo(true);
+      salvarSessao({ token: s.token!, admin: s.admin! });
+      navigate(s.configurar2fa ? '/conta' : '/', { replace: true });
+    },
   });
 
   function enviar(e: FormEvent) {
@@ -189,8 +206,16 @@ function Login() {
           <label htmlFor="senha">Senha</label>
           <input id="senha" className="input" type="password" autoComplete="current-password" value={senha} onChange={(e) => setSenha(e.target.value)} required />
         </div>
-        <button className="btn" style={{ justifyContent: 'center', minHeight: 40 }} disabled={entrar.isPending}>
-          {entrar.isPending ? 'Entrando…' : 'Entrar'}
+        {pedeCodigo ? (
+          <div className="campo">
+            <label htmlFor="codigo">Código do aplicativo autenticador</label>
+            <input id="codigo" className="input" inputMode="numeric" autoComplete="one-time-code" autoFocus placeholder="000000"
+              value={codigo} onChange={(e) => setCodigo(e.target.value.replace(/\D/g, '').slice(0, 6))} required />
+            <span className="ajuda">Abra o Google Authenticator (ou similar) e digite o código de 6 dígitos do Renovando Admin.</span>
+          </div>
+        ) : null}
+        <button className="btn" style={{ justifyContent: 'center', minHeight: 40 }} disabled={entrar.isPending || (pedeCodigo && codigo.length !== 6)}>
+          {entrar.isPending ? 'Entrando…' : pedeCodigo ? 'Confirmar código' : 'Entrar'}
         </button>
       </form>
     </div>
