@@ -1,0 +1,24 @@
+# Dependências e builds
+node_modules
+admin/painel/dist
+.expo
+
+# Segredos: NUNCA vão para o repositório (use os arquivos .env.exemplo como modelo)
+.env
+.env.*
+!.env.exemplo
+
+# Dados reais (banco, imagens enviadas, anexos, backups): ficam só no servidor e nos backups
+dados/*
+!dados/uploads/
+dados/uploads/*
+!dados/uploads/.gitkeep
+backups/
+
+# Sistema
+.DS_Store
+Thumbs.db
+*.log
+
+# Configuração local do editor
+.claude/
