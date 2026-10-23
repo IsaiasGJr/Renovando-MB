@@ -82,6 +82,13 @@ Deixa as imagens antigas no mesmo padrão dos envios novos (WEBP, até 1600 px, 
 
 Em **Meus cupons** o app mostra o mesmo que o site: resumo (total, premiados, último cupom), filtro por oferta e, em cada cupom, campanha, igreja, emissão, número (`#123456`), situação (Ativo/Expirado) e selo Premiado. **Baixar cupom** gera o bilhete da campanha com o número, a igreja, o nome e a data (a arte de cada campanha é trocada em Campanhas → Arte do cupom; sem arte, sai um bilhete com as cores da marca). Só o dono do cupom consegue baixar.
 
+### Se o app não abrir no celular
+
+1. **A API está ligada?** Sem o terminal do `npm run api` aberto, o app não carrega nada. Teste no computador: http://localhost:3333/api/saude
+2. **Feche o Expo antigo** (Ctrl+C no terminal dele) e abra de novo com `npm run app`. O comando já limpa o cache e coloca no QR Code o IP do Wi-Fi (este computador tem placas virtuais do VirtualBox e do WSL, e o Expo às vezes escolhia uma delas, que o celular não alcança).
+3. Celular e computador **no mesmo Wi-Fi**. Se o Windows perguntar sobre o firewall do Node.js, permita.
+4. Avisos no celular (notificações) **não funcionam no Expo Go**: aparecem só no app gerado pelo EAS. No Expo Go o resto funciona normalmente.
+
 ## Admin em modo produção (um único servidor)
 
 ```bash

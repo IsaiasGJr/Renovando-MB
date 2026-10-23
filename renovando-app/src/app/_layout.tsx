@@ -1,13 +1,11 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import * as Notifications from 'expo-notifications';
 import { router, Stack, type Href } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
-import { Platform } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Carregando } from '@/components/ui';
 import { useAuth } from '@/store/auth';
-import { ativarAvisos, rotaDoAviso } from '@/utils/avisos';
+import { aoTocarNoAviso, ativarAvisos } from '@/utils/avisos';
 import { cores } from '@/theme';
 
 export default function RootLayout() {
@@ -32,14 +30,8 @@ export default function RootLayout() {
 
   // Tocar num aviso abre a tela dele (ex.: resultado do sorteio → Prêmios).
   useEffect(() => {
-    if (Platform.OS === 'web' || !carregado) return;
-    const abrir = (r: Notifications.NotificationResponse | null) => {
-      const rota = rotaDoAviso(r);
-      if (rota) router.push(rota as Href);
-    };
-    void Notifications.getLastNotificationResponseAsync().then(abrir);
-    const assinatura = Notifications.addNotificationResponseReceivedListener(abrir);
-    return () => assinatura.remove();
+    if (!carregado) return;
+    return aoTocarNoAviso((rota) => router.push(rota as Href));
   }, [carregado]);
 
   return (

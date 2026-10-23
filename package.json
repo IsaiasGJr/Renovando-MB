@@ -11,11 +11,11 @@
   "scripts": {
     "api": "npm run dev -w renovando-api",
     "admin": "concurrently -k -n servidor,painel -c magenta,blue \"npm run dev -w renovando-admin-servidor\" \"npm run dev -w renovando-admin-painel\"",
-    "app": "npm --prefix renovando-app start",
+    "app": "node scripts/expo.mjs renovando-app --limpar",
     "admin:build": "npm run build -w renovando-admin-painel",
     "admin:producao": "npm run admin:build && npm start -w renovando-admin-servidor",
     "typecheck": "npm run typecheck -w renovando-api -w renovando-admin-servidor && npm run build -w renovando-admin-painel",
-    "admin:app": "npm --prefix admin/app start",
+    "admin:app": "node scripts/expo.mjs admin/app --limpar",
     "gerar-chaves": "node scripts/gerar-chaves.mjs",
     "test": "node --no-warnings testes/rodar.mjs",
     "backup": "node --no-warnings scripts/backup.mjs",

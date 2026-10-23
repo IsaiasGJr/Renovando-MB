@@ -1,21 +1,20 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import * as Notifications from 'expo-notifications';
 import { useEffect, useState } from 'react';
-import { Linking, Platform, Text, View } from 'react-native';
+import { Linking, Text, View } from 'react-native';
 import { Botao, Cartao } from '@/components/ui';
 import { cores, espaco } from '@/theme';
-import { ativarAvisos, type ResultadoAvisos } from '@/utils/avisos';
+import { ativarAvisos, avisosDisponiveis, avisosPermitidos, type ResultadoAvisos } from '@/utils/avisos';
 
 /**
  * Convite para receber os avisos do sorteio no celular. Some sozinho se já estiverem ativados.
- * Não aparece na versão web.
+ * Não aparece na versão web nem no Expo Go (que não suporta notificações).
  */
 export function ConviteAvisos({ texto = 'Receba o lembrete na véspera e o resultado de cada sorteio no celular.' }: { texto?: string }) {
-  const [situacao, setSituacao] = useState<'carregando' | 'pendente' | ResultadoAvisos>(Platform.OS === 'web' ? 'indisponivel' : 'carregando');
+  const [situacao, setSituacao] = useState<'carregando' | 'pendente' | ResultadoAvisos>(avisosDisponiveis ? 'carregando' : 'indisponivel');
 
   useEffect(() => {
-    if (Platform.OS === 'web') return;
-    void Notifications.getPermissionsAsync().then(({ status }) => setSituacao(status === 'granted' ? 'ativado' : 'pendente'));
+    if (!avisosDisponiveis) return;
+    void avisosPermitidos().then((ok) => setSituacao(ok ? 'ativado' : 'pendente'));
   }, []);
 
   if (situacao === 'carregando' || situacao === 'indisponivel' || situacao === 'ativado') return null;
