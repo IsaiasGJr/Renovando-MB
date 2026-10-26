@@ -3,7 +3,7 @@ import { Navigate, NavLink, Outlet, Route, Routes, useNavigate } from 'react-rou
 import {
   BarChart3, Building2, ClipboardList, Flag, Gift, HelpCircle, LayoutDashboard, LogOut,
   MessageSquareQuote, Music, Newspaper, ShieldCheck, Sprout, Users, ImageIcon, Handshake, Images, Inbox, Bell, Scale,
-  ClipboardCheck, LifeBuoy, Wallet,
+  ClipboardCheck, LifeBuoy, Wallet, FileSpreadsheet,
 } from './componentes/icones';
 import { Simbolo } from './componentes/Marca';
 import { lerSessao, salvarSessao, type Admin } from './api';
@@ -26,6 +26,7 @@ const MinhaIgreja = lazy(() => perfil().then((m) => ({ default: m.MinhaIgreja })
 const Aprovacoes = lazy(() => import('./paginas/Aprovacoes'));
 const Repasses = lazy(() => import('./paginas/Repasses'));
 const Ajuda = lazy(() => import('./paginas/Ajuda'));
+const Importacoes = lazy(() => import('./paginas/Importacoes'));
 const Campanhas = lazy(() => import('./paginas/Campanhas'));
 const Dashboard = lazy(() => import('./paginas/Dashboard'));
 const Premios = lazy(() => import('./paginas/Premios'));
@@ -76,6 +77,7 @@ export default function App() {
         <Route path="aprovacoes" element={<Aprovacoes />} />
         <Route path="repasses" element={<Repasses />} />
         <Route path="ajuda" element={<Ajuda />} />
+        <Route path="importar" element={<Importacoes />} />
         <Route path="banners" element={<Banners />} />
         <Route path="parceiros" element={<Parceiros />} />
         <Route path="galeria" element={<GaleriaPalmas />} />
@@ -162,6 +164,7 @@ function Layout({ admin }: { admin: Admin }) {
           <>
             <div className="grupo">Sistema</div>
             {link('/avisos', 'Avisos no celular', Bell)}
+            {link('/importar', 'Importar planilhas', FileSpreadsheet)}
             {link('/usuarios', 'Usuários do painel', ShieldCheck)}
             {link('/paginas', 'Páginas legais', Scale)}
             {link('/auditoria', 'Registro de atividades', ClipboardList)}

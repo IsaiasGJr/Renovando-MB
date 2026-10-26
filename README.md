@@ -108,6 +108,7 @@ Gera as telas do painel e sobe o servidor do admin em http://localhost:4000, ent
 - **Usuários do painel:** *Administrador* (tudo) e *Editor* (sem campanhas, sorteios e usuários).
 - **Banners do topo**, **Parcerias**, **Galeria do Palmas para Jesus**, **Páginas legais** (Privacidade e Termos) e **Mensagens** do "Fale conosco" (com anexos que só o admin baixa).
 - **Igrejas** com logo, mensagem e endereço da página (`/igreja/<endereco>`); **artistas** com biografia e galeria de fotos.
+- **Importar planilhas** (só administradores): WhatsApp dos pastores e chaves PIX das igrejas, semeadores N1/N2 e parceiros por CSV do Excel. O sistema confere linha por linha antes de gravar e planilha com erro nunca é gravada.
 
 ## O que o app dos ofertantes tem
 
@@ -158,7 +159,7 @@ Com `npm run api` e `npm run admin` ligados (modo de desenvolvimento):
 npm test
 ```
 
-Roda 209 verificações: segurança, criptografia, exclusão de conta, envio de imagens, painéis, verificação em duas etapas,
+Roda 222 verificações: segurança, criptografia, exclusão de conta, envio de imagens, painéis, verificação em duas etapas,
 WhatsApp, avisos no celular e mais. Os testes **nunca mexem em igrejas reais** (cada um cria uma igreja temporária e apaga
 tudo no fim) e se recusam a rodar se a API não estiver em modo de desenvolvimento.
 
@@ -168,11 +169,11 @@ tudo no fim) e se recusam a rodar se a API não estiver em modo de desenvolvimen
 |---|---|
 | `npm run importar-igrejas` | as igrejas credenciadas (com logo e chave PIX cifrada) |
 | `npm run importar-artistas` | o catálogo de shows gospel |
-| `npm run importar-conteudo` | prêmios (valores e fotos), perguntas frequentes, Política de Privacidade, depoimentos, notícias, parcerias, banners e galeria do Palmas para Jesus |
+| `npm run importar-conteudo` | prêmios (valores e fotos), perguntas frequentes, Política de Privacidade, Termos de Uso, depoimentos, notícias, parcerias, banners e galeria do Palmas para Jesus |
 | `npm run otimizar-imagens` | deixa as imagens no padrão (WEBP, até 1600 px) e guarda as sem uso |
 
-Todos só leem as páginas públicas do site e podem rodar de novo sem duplicar. Os Termos de Uso não são importados
-(no site estão incompletos).
+Todos só leem as páginas públicas do site e podem rodar de novo sem duplicar. Os Termos vêm com as 13 seções do site mais a seção
+"Exclusão de conta"; o telefone e o endereço de exemplo do site são retirados.
 
 ## Panfleto de cada igreja
 
@@ -232,8 +233,8 @@ O painel administrativo (`admin.`) tem a mesma entrada do site: **WhatsApp → c
 
 1. **Gateway PIX:** escolher (Asaas, Efí, Mercado Pago ou Pagar.me) e mandar as chaves de teste para integrar.
 2. **WhatsApp:** conta Meta Business, número e modelo `codigo_login` aprovado (ver PUBLICAR.md).
-3. **Jurídico:** autorização do sorteio, regulamento, revisão dos Termos e da Política de Privacidade (a do site tem telefone e endereço de exemplo).
+3. **Jurídico:** autorização do sorteio, regulamento, revisão dos Termos e da Política de Privacidade (falta pôr o telefone e o endereço reais de contato).
 4. **Lojas:** Google Play e Apple exigem regras próprias para apps com sorteio pago; decidir com o advogado se a oferta fica no app ou só no site.
-5. **Dados das igrejas:** WhatsApp dos pastores (para o "Meu painel") e conferência das chaves PIX antes de repassar dinheiro.
+5. **Dados das igrejas:** WhatsApp dos pastores (para o "Meu painel"; dá para enviar todos de uma vez em Importar planilhas) e conferência das chaves PIX antes de repassar dinheiro.
 6. **Migração da Edição 2026:** ofertas, cupons e contas que já estão no site atual.
 7. **Equipe:** criar um usuário do painel para cada pessoa e ativar a verificação em duas etapas.

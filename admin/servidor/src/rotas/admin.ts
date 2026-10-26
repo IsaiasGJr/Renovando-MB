@@ -13,6 +13,8 @@ import { cifrar, cifrarCampos, decifrar, decifrarCampos, indice } from '../../..
 import { celulaCsv, ehImagemValida, limitar, TIPOS_IMAGEM, zerarLimite } from '../../../../compartilhado/src/seguranca.ts';
 import { enviarAviso } from '../../../../compartilhado/src/avisos.ts';
 import { pdfPanfletoDaIgreja } from '../../../../compartilhado/src/panfleto.ts';
+import { lerCsv } from '../../../../compartilhado/src/csv.ts';
+import { importar, modeloCsv, type TipoImportacao } from '../../../../compartilhado/src/importacoes.ts';
 import { movimentacoes, regraN2DeExemplo, registrarPagamento, saldo, type TipoBeneficiario } from '../../../../compartilhado/src/repasses.ts';
 import QRCode from 'qrcode';
 import { assinar, exigirAdmin, somenteAdmin } from '../auth.ts';
@@ -938,6 +940,35 @@ admin.get('/movimentacoes', somenteAdmin, (req, res) => {
     ...params, (pagina - 1) * 50,
   );
   res.json({ total: total.n, soma: total.soma, pagina, porPagina: 50, linhas });
+});
+
+// ---------- Importação por planilha (só administradores) ----------
+
+const tipoImportacao = (t: string) => {
+  if (t !== 'igrejas' && t !== 'semeadores' && t !== 'parceiros') throw naoEncontrado();
+  return t as TipoImportacao;
+};
+
+admin.get('/importacoes/:tipo/modelo.csv', somenteAdmin, (req, res) => {
+  const tipo = tipoImportacao(param(req, 'tipo'));
+  auditar(req, 'exportar', 'importacoes', null, `Modelo de planilha (${tipo})`);
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="modelo-${tipo}.csv"`);
+  res.send(modeloCsv(tipo));
+});
+
+// Primeiro confere (aplicar: false) e mostra o que vai mudar; depois grava (aplicar: true). Com erro, não grava nada.
+admin.post('/importacoes/:tipo', somenteAdmin, (req, res) => {
+  const tipo = tipoImportacao(param(req, 'tipo'));
+  const { csv, aplicar } = validar(z.object({ csv: z.string().min(1, 'envie a planilha').max(900_000, 'planilha grande demais'), aplicar: z.boolean().default(false) }), req.body);
+  const linhas = lerCsv(csv);
+  if (!linhas.length) throw new ErroHttp(400, 'A planilha está vazia ou sem cabeçalho.');
+  if (linhas.length > 3000) throw new ErroHttp(400, 'Máximo de 3000 linhas por planilha.');
+  const r = importar(tipo, linhas, aplicar);
+  if (r.aplicado) {
+    auditar(req, 'editar', 'importacoes', null, `Planilha de ${tipo}: ${r.criar} novo(s), ${r.atualizar} atualizado(s)`, { criar: r.criar, atualizar: r.atualizar, ignorar: r.ignorar });
+  }
+  res.json(r);
 });
 
 // ---------- Sorteios (resumo) ----------

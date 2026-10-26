@@ -6,6 +6,16 @@ export type Guia = { grupo: string; titulo: string; passos: string[] };
 
 export const GUIAS: Guia[] = [
   {
+    grupo: 'Cadastros', titulo: 'Importar planilhas (WhatsApp dos pastores, PIX, semeadores, parceiros)',
+    passos: [
+      'Abra Importar planilhas (menu Sistema, só administradores) e escolha o tipo.',
+      'Baixe o modelo: o de igrejas já vem com todas as igrejas, faltando só preencher.',
+      'Preencha no Excel e salve como CSV (separado por ponto e vírgula). Célula vazia não muda nada.',
+      'Envie o arquivo e clique em Conferir: aparece linha por linha o que vai mudar e os erros.',
+      'Se não houver erro, clique em Importar. Planilha com erro nunca é gravada.',
+    ],
+  },
+  {
     grupo: 'Começando', titulo: 'Entrar pelo WhatsApp (equipe, pastor, semeador e parceiro)',
     passos: [
       'Na tela de entrada, deixe "WhatsApp" marcado, digite o número e toque em Receber código no WhatsApp.',

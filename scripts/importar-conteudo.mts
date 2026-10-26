@@ -130,7 +130,9 @@ const bannersSite = lista<{ imageUrl: string; linkUrl: string | null; title: str
 
 const privacidadeHtml = await texto(`${SITE}/politica-de-privacidade`);
 const corpoPrivacidade = privacidadeHtml.slice(privacidadeHtml.indexOf('<h2'), privacidadeHtml.lastIndexOf('</section>') > 0 ? privacidadeHtml.lastIndexOf('</section>') : undefined);
-const privacidade = htmlParaTexto(corpoPrivacidade.replace(/<footer[\s\S]*$/i, ''));
+// Telefone e endereço do site são de exemplo ("(11) 9999-9999", "São Paulo"): ficam de fora até a equipe informar os reais.
+const privacidade = htmlParaTexto(corpoPrivacidade.replace(/<footer[\s\S]*$/i, ''))
+  .split('\n').filter((l) => !/^(- )?Telefone: \(11\) 9999|^(- )?Endereço: São Paulo/.test(l.trim())).join('\n').replace(/\n{3,}/g, '\n\n');
 
 const projeto = await texto(`${SITE}/projeto`);
 const parceirosSite = [...new Map(
