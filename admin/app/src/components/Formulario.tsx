@@ -1,6 +1,7 @@
 import { Image } from 'expo-image';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import * as ImagePicker from 'expo-image-picker';
+import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { FlatList, Modal, Pressable, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -15,6 +16,8 @@ export type CampoDef = {
   rotulo: string;
   tipo?: 'texto' | 'textarea' | 'numero' | 'checkbox' | 'select' | 'data' | 'datahora' | 'imagem' | 'galeria' | 'senha' | 'email' | 'telefone';
   opcoes?: { valor: string; rotulo: string }[];
+  /** Opções vindas da API (ex.: semeadores N1 para ligar um N2). */
+  carregarOpcoes?: () => Promise<{ valor: string; rotulo: string }[]>;
   ajuda?: string;
   obrigatorio?: boolean;
   padrao?: unknown;
@@ -102,7 +105,7 @@ function CampoGaleria({ rotulo, ajuda, valor, onChange }: { rotulo: string; ajud
   );
 }
 
-export function CampoImagem({ rotulo, valor, onChange }: { rotulo: string; valor: string; onChange: (u: string) => void }) {
+export function CampoImagem({ rotulo, valor, onChange, finalidade }: { rotulo: string; valor: string; onChange: (u: string) => void; finalidade?: 'cupom' | 'panfleto' }) {
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState('');
 
@@ -113,7 +116,7 @@ export function CampoImagem({ rotulo, valor, onChange }: { rotulo: string; valor
     const a = r.assets[0];
     setEnviando(true);
     try {
-      onChange(await enviarImagem({ uri: a.uri, nome: a.fileName, tipo: a.mimeType, largura: a.width, altura: a.height }));
+      onChange(await enviarImagem({ uri: a.uri, nome: a.fileName, tipo: a.mimeType, largura: a.width, altura: a.height }, finalidade));
     } catch (e) {
       setErro((e as Error).message);
     } finally {
@@ -146,7 +149,7 @@ export function CampoImagem({ rotulo, valor, onChange }: { rotulo: string; valor
 }
 
 /** Seletor para listas longas (ex.: UF): mostra o valor atual e abre a lista completa. */
-function SeletorLista({ rotulo, opcoes, valor, onChange }: {
+export function SeletorLista({ rotulo, opcoes, valor, onChange }: {
   rotulo: string; opcoes: { valor: string; rotulo: string }[]; valor: string; onChange: (v: string) => void;
 }) {
   const [aberto, setAberto] = useState(false);
@@ -206,6 +209,9 @@ export function Formulario({ campos, valores, onChange }: { campos: CampoDef[]; 
             </View>
           );
         }
+        if (c.tipo === 'select' && c.carregarOpcoes) {
+          return <SelectDaApi key={c.nome} rotulo={rotulo} carregar={c.carregarOpcoes} valor={String(valor ?? '')} onChange={(v) => set(c.nome, v)} ajuda={c.ajuda} />;
+        }
         if (c.tipo === 'select' && (c.opcoes?.length ?? 0) > 6) {
           return <SeletorLista key={c.nome} rotulo={rotulo} opcoes={c.opcoes ?? []} valor={String(valor ?? '')} onChange={(v) => set(c.nome, v)} />;
         }
@@ -243,6 +249,19 @@ export function Formulario({ campos, valores, onChange }: { campos: CampoDef[]; 
           />
         );
       })}
+    </View>
+  );
+}
+
+/** Lista de opções carregada da API (ex.: semeadores N1). */
+function SelectDaApi({ rotulo, carregar, valor, onChange, ajuda }: {
+  rotulo: string; carregar: () => Promise<{ valor: string; rotulo: string }[]>; valor: string; onChange: (v: string) => void; ajuda?: string;
+}) {
+  const q = useQuery({ queryKey: ['opcoes', rotulo], queryFn: carregar });
+  return (
+    <View style={{ gap: espaco.xs }}>
+      <SeletorLista rotulo={rotulo} opcoes={q.data ?? []} valor={valor} onChange={onChange} />
+      {ajuda ? <Text style={{ color: cores.textoSuave, fontSize: 13 }}>{ajuda}</Text> : null}
     </View>
   );
 }

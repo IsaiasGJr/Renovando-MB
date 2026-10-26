@@ -36,9 +36,17 @@ export default function Cadastros() {
         {item('premios')}
       </Grupo>
 
+      {ehAdmin ? (
+        <Grupo titulo="Financeiro">
+          <ItemMenu icone="wallet-outline" texto="Repasses" onPress={() => router.push('/repasses' as Href)} />
+          <ItemMenu icone="add-circle-outline" texto="Registrar oferta recebida fora do app" onPress={() => router.push('/registrar-oferta' as Href)} />
+        </Grupo>
+      ) : null}
+
       <Grupo titulo="Rede">
-        {item('igrejas', p?.igrejas)}
-        {item('semeadores', p?.semeadores)}
+        <ItemMenu icone="checkmark-done-outline" texto="Aprovações" contador={(p?.igrejas ?? 0) + (p?.semeadores ?? 0)} onPress={() => router.push('/aprovacoes' as Href)} />
+        {item('igrejas')}
+        {item('semeadores')}
         <ItemMenu icone="person-outline" texto="Ofertantes" onPress={() => router.push('/ofertantes')} />
       </Grupo>
 
@@ -55,6 +63,10 @@ export default function Cadastros() {
       <Grupo titulo="Shows gospel">
         {item('solicitacoes-show', p?.shows)}
         {item('artistas')}
+      </Grupo>
+
+      <Grupo titulo="Ajuda">
+        <ItemMenu icone="help-buoy-outline" texto="Central de ajuda" onPress={() => router.push('/ajuda' as Href)} />
       </Grupo>
 
       {ehAdmin ? (

@@ -1,8 +1,13 @@
 export const moeda = (v: number) =>
   v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: v % 1 ? 2 : 0 });
 
+/** Data sem hora ("2026-08-10") é mostrada como está: lida como UTC, voltaria um dia no fuso do Brasil. */
+const soData = (iso: string) => {
+  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : null;
+};
 export const data = (iso: string) =>
-  new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  soData(iso) ?? new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
 export const soDigitos = (s: string) => s.replace(/\D/g, '');
 

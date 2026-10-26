@@ -1,6 +1,7 @@
 import { join } from 'node:path';
 import { cifrar, decifrar, estaCifrado, indice } from './cripto.ts';
 import { db, executar, PASTA_DADOS, todos, transacao } from './db.ts';
+import { completarLancamentos, regraN2DeExemplo } from './repasses.ts';
 import { slugUnico } from './util.ts';
 
 /** Colunas com dados pessoais que ficam cifradas no banco. */
@@ -13,6 +14,8 @@ const COLUNAS_CIFRADAS: [tabela: string, coluna: string][] = [
   ['solicitacoes_show', 'email'],
   ['igrejas', 'chave_pix'],
   ['semeadores', 'chave_pix'],
+  ['parceiros', 'whatsapp'],
+  ['parceiros', 'chave_pix'],
 ];
 
 const ehMarcador = (v: string) => v.startsWith('excluido:');
@@ -70,6 +73,12 @@ export function migrarCriptografia() {
  */
 export function completarDadosNovos() {
   transacao(() => {
+    // Regra "com N2" de exemplo para campanhas que ainda não têm (a equipe revisa no admin).
+    for (const c of todos<{ id: string; divisaoJson: string }>("SELECT id, divisao_json FROM campanhas WHERE divisao_n2_json = ''")) {
+      executar('UPDATE campanhas SET divisao_n2_json = ? WHERE id = ?', JSON.stringify(regraN2DeExemplo(JSON.parse(c.divisaoJson))), c.id);
+    }
+    // Lançamentos de repasse que faltam (ofertas pagas antes desta versão).
+    completarLancamentos();
     for (const tabela of ['igrejas', 'artistas'] as const) {
       const nomeCol = tabela === 'igrejas' ? 'nome_fantasia' : 'nome';
       const linhas = todos<{ id: string; nome: string }>(`SELECT id, ${nomeCol} AS nome FROM ${tabela} WHERE slug IS NULL OR slug = ''`);

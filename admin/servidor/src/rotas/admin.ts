@@ -6,13 +6,14 @@ import multer from 'multer';
 import sharp from 'sharp';
 import { z, type ZodObject, type ZodRawShape } from 'zod';
 import { atualizar, executar, inserir, PASTA_ANEXOS, PASTA_UPLOADS, todos, transacao, um } from '../../../../compartilhado/src/db.ts';
-import { formatarCampanha, sortearPremio, type Divisao } from '../../../../compartilhado/src/dominio.ts';
+import { formatarCampanha, registrarOfertaManual, sortearPremio, type Divisao } from '../../../../compartilhado/src/dominio.ts';
 import { ErroHttp, naoEncontrado, novoId, param, query, slugify, slugUnico, soDigitos, validar } from '../../../../compartilhado/src/util.ts';
 import { diferenca, registrar, type Acao } from '../../../../compartilhado/src/auditoria.ts';
 import { cifrar, cifrarCampos, decifrar, decifrarCampos, indice } from '../../../../compartilhado/src/cripto.ts';
 import { celulaCsv, ehImagemValida, limitar, TIPOS_IMAGEM, zerarLimite } from '../../../../compartilhado/src/seguranca.ts';
 import { enviarAviso } from '../../../../compartilhado/src/avisos.ts';
 import { pdfPanfletoDaIgreja } from '../../../../compartilhado/src/panfleto.ts';
+import { movimentacoes, regraN2DeExemplo, registrarPagamento, saldo, type TipoBeneficiario } from '../../../../compartilhado/src/repasses.ts';
 import QRCode from 'qrcode';
 import { assinar, exigirAdmin, somenteAdmin } from '../auth.ts';
 import { env } from '../env.ts';
@@ -162,6 +163,21 @@ admin.post('/upload', upload.single('arquivo'), async (req, res) => {
   if (!req.file) throw new ErroHttp(400, 'Envie uma imagem PNG, JPG, WEBP ou GIF de até 15 MB.');
   // Confere o conteúdo de verdade: o tipo informado pelo navegador pode ser falso.
   if (!ehImagemValida(req.file.buffer.subarray(0, 12))) throw new ErroHttp(400, 'O arquivo enviado não é uma imagem válida.');
+  // Artes da campanha precisam ter o formato certo (como no site), senão o cupom/panfleto sai torto.
+  const finalidade = query(req, 'finalidade');
+  const FORMATOS: Record<string, { largura: number; altura: number; nome: string }> = {
+    cupom: { largura: 640, altura: 930, nome: 'A arte do cupom' },
+    panfleto: { largura: 1200, altura: 470, nome: 'O panfleto' },
+  };
+  if (finalidade && FORMATOS[finalidade]) {
+    const f = FORMATOS[finalidade];
+    const m = await sharp(req.file.buffer).metadata().catch(() => null);
+    const w = m?.autoOrient?.width ?? m?.width ?? 0;
+    const h = m?.autoOrient?.height ?? m?.height ?? 0;
+    if (!w || Math.abs(w / h - f.largura / f.altura) > 0.02 || w < f.largura * 0.9) {
+      throw new ErroHttp(400, `${f.nome} deve ter ${f.largura} × ${f.altura} px (ou o mesmo formato, maior). Esta imagem tem ${w} × ${h} px.`);
+    }
+  }
   let otimizada: Buffer;
   try {
     otimizada = await otimizarImagem(req.file.buffer);
@@ -193,6 +209,8 @@ type ConfigCrud<S extends ZodRawShape> = {
   cifrados?: string[];
   /** Colunas guardadas como JSON (ex.: galeria de fotos, anexos). */
   json?: string[];
+  /** Dados calculados acrescentados em cada linha devolvida (ex.: nível do semeador, quem o indicou). */
+  enriquecer?: (l: Record<string, unknown>) => Record<string, unknown>;
 };
 
 function crud<S extends ZodRawShape>(caminho: string, cfg: ConfigCrud<S>, ...middlewares: ((...a: never[]) => void)[]) {
@@ -218,7 +236,7 @@ function crud<S extends ZodRawShape>(caminho: string, cfg: ConfigCrud<S>, ...mid
     for (const b of cfg.booleanos ?? []) if (b in l) l[b] = !!l[b];
     for (const j of cfg.json ?? []) if (typeof l[j] === 'string') l[j] = JSON.parse((l[j] as string) || '[]');
     for (const o of cfg.ocultar ?? []) delete l[o];
-    return l;
+    return cfg.enriquecer ? { ...l, ...cfg.enriquecer(l) } : l;
   };
   const r = Router();
   if (middlewares.length) r.use(...(middlewares as never[]));
@@ -286,16 +304,23 @@ const filtroStatus = (req: Request) => {
 };
 
 // Campanhas: precisa de rota própria por causa da divisão (JSON) e da ativação.
+const TIPOS_DIVISAO = ['igreja', 'semeador_n1', 'semeador_n2', 'parceiro', 'plataforma'] as const;
+const divisaoSchema = (msg: string) => z
+  .array(z.object({ rotulo: texto(), percentual: z.number().min(0).max(100), tipo: z.enum(TIPOS_DIVISAO).optional() }))
+  .min(1)
+  .refine((d) => Math.abs(d.reduce((s, x) => s + x.percentual, 0) - 100) < 0.01, msg);
+
 const schemaCampanha = z.object({
   edicao: texto(2),
   titulo: texto(2),
   subtitulo: opcional,
   descricao: opcional,
   valorCupom: z.number().positive(),
-  divisao: z
-    .array(z.object({ rotulo: texto(), percentual: z.number().min(0).max(100) }))
-    .min(1)
-    .refine((d) => Math.abs(d.reduce((s, x) => s + x.percentual, 0) - 100) < 0.01, 'a divisão precisa somar 100%'),
+  divisao: divisaoSchema('a divisão precisa somar 100%'),
+  // Regra quando a igreja foi trazida por um semeador N2 (a parte de semeador se divide entre N1 e N2).
+  divisaoN2: divisaoSchema('a divisão com N2 precisa somar 100%').optional(),
+  parceiroId: z.string().nullable().optional(),
+  metaOfertas: z.number().min(0).optional(),
   inicio: z.string().nullable().optional(),
   // Arte do cupom (como no site): só imagens enviadas pelo próprio admin.
   imagemPanfleto: z.string().regex(/^(\/uploads\/[\w-]+\.(png|jpg|webp))?$/, 'envie o panfleto pelo botão de imagem').optional().default(''),
@@ -316,19 +341,24 @@ admin.get('/campanhas', (_req, res) => {
 });
 admin.get('/campanhas/:id', (req, res) => res.json(lerCampanha(param(req, 'id'))));
 admin.post('/campanhas', somenteAdmin, (req, res) => {
-  const { divisao, ...d } = validar(schemaCampanha, req.body);
+  const { divisao, divisaoN2, ...d } = validar(schemaCampanha, req.body);
   const id = novoId();
-  inserir('campanhas', { id, ...d, divisaoJson: JSON.stringify(divisao) });
+  inserir('campanhas', { id, ...d, divisaoJson: JSON.stringify(divisao), divisaoN2Json: JSON.stringify(divisaoN2 ?? regraN2DeExemplo(divisao)) });
   auditar(req, 'criar', 'campanhas', id, d.edicao, { ...d, divisao });
   res.status(201).json(lerCampanha(id));
 });
 admin.put('/campanhas/:id', somenteAdmin, (req, res) => {
   const id = param(req, 'id');
   const antes = lerCampanha(id);
-  const { divisao, ...d } = soEnviados(validar(schemaCampanha.partial(), req.body), req.body) as z.infer<typeof schemaCampanha>;
-  atualizar('campanhas', id, divisao ? { ...d, divisaoJson: JSON.stringify(divisao) } : d);
+  const { divisao, divisaoN2, ...d } = soEnviados(validar(schemaCampanha.partial(), req.body), req.body) as z.infer<typeof schemaCampanha>;
+  atualizar('campanhas', id, {
+    ...d,
+    ...(divisao ? { divisaoJson: JSON.stringify(divisao) } : {}),
+    ...(divisaoN2 ? { divisaoN2Json: JSON.stringify(divisaoN2) } : {}),
+  });
   const mudou = diferenca(antes as unknown as Record<string, unknown>, d);
   if (divisao && JSON.stringify(divisao) !== JSON.stringify(antes.divisao)) mudou.divisao = { de: antes.divisao, para: divisao };
+  if (divisaoN2 && JSON.stringify(divisaoN2) !== JSON.stringify(antes.divisaoN2)) mudou.divisaoN2 = { de: antes.divisaoN2, para: divisaoN2 };
   if (Object.keys(mudou).length) auditar(req, 'editar', 'campanhas', id, antes.edicao, mudou);
   res.json(lerCampanha(id));
 });
@@ -461,8 +491,31 @@ crud('/semeadores', {
     chavePix: opcional,
     codigo: texto(3).transform((s) => s.toUpperCase()),
     status: z.enum(['pendente', 'ativo', 'rejeitado', 'inativo']).default('ativo'),
+    // N2: semeador trazido por um N1 (vazio = N1).
+    paiId: z.string().nullable().optional(),
+    observacao: opcional,
   }),
-  antesDeSalvar: (d) => {
+  enriquecer: (l) => {
+    const pai = l.paiId ? um<{ nome: string; sobrenome: string }>('SELECT nome, sobrenome FROM semeadores WHERE id = ?', String(l.paiId)) : undefined;
+    return {
+      nivel: l.paiId ? 2 : 1,
+      indicadoPor: pai ? `${pai.nome} ${pai.sobrenome}`.trim() : '',
+      igrejas: um<{ n: number }>('SELECT COUNT(*) AS n FROM igrejas WHERE semeador_id = ?', String(l.id))!.n,
+      n2: um<{ n: number }>('SELECT COUNT(*) AS n FROM semeadores WHERE pai_id = ?', String(l.id))!.n,
+    };
+  },
+  antesDeSalvar: (d, _req, id) => {
+    // "Nenhum" no formulário chega vazio: vira N1.
+    if (d.paiId === '') d = { ...d, paiId: null };
+    // N2 só pode ser ligado a um N1 ativo (não a si mesmo nem a outro N2): a rede tem 2 níveis.
+    if (d.paiId) {
+      const pai = um<{ paiId: string | null; status: string }>('SELECT pai_id, status FROM semeadores WHERE id = ?', String(d.paiId));
+      if (!pai || d.paiId === id) throw new ErroHttp(400, 'Semeador N1 não encontrado.');
+      if (pai.paiId) throw new ErroHttp(400, 'Um semeador N2 não pode ter outros semeadores abaixo dele (a rede tem só 2 níveis).');
+      if (id && um('SELECT 1 FROM semeadores WHERE pai_id = ? LIMIT 1', id)) {
+        throw new ErroHttp(400, 'Este semeador já tem N2 abaixo dele; ele precisa continuar como N1.');
+      }
+    }
     if (d.whatsapp === undefined) return d;
     const fone = soDigitos(String(d.whatsapp));
     return { ...d, whatsappIndice: fone ? indice(fone) : null };
@@ -565,13 +618,21 @@ crud('/parceiros', {
   rotulo: (l) => String(l.nome),
   ordem: 'ordem, nome',
   booleanos: ['ativo'],
+  cifrados: ['whatsapp', 'chavePix'],
+  camposSoAdmin: ['chavePix', 'tipoChavePix'],
+  ocultar: ['whatsappIndice'],
   schema: z.object({
     nome: texto(2),
     logoUrl: opcional,
     site: z.string().trim().refine((v) => v === '' || /^https:\/\//.test(v), 'o site precisa começar com https://').default(''),
     ordem: z.number().int().default(0),
     ativo: z.boolean().default(true),
+    // Parceiro da campanha: entra no app com este WhatsApp e vê saldo e movimentações.
+    whatsapp: z.string().transform(soDigitos).refine((v) => v === '' || v.length === 11, 'informe DDD + número').default(''),
+    tipoChavePix: z.enum(['cnpj', 'cpf', 'email', 'telefone', 'aleatoria']).default('cnpj'),
+    chavePix: opcional,
   }),
+  antesDeSalvar: (d) => (d.whatsapp === undefined ? d : { ...d, whatsappIndice: d.whatsapp ? indice(String(d.whatsapp)) : null }),
 });
 
 crud('/galeria', {
@@ -684,6 +745,171 @@ crud(
   },
   somenteAdmin,
 );
+
+// ---------- Aprovações (cadastros feitos pelo app) ----------
+
+admin.get('/aprovacoes', (_req, res) => {
+  const igrejas = todos<Record<string, unknown>>(
+    `SELECT i.id, i.nome_fantasia, i.razao_social, i.cnpj, i.cidade, i.uf, i.pastor_nome, i.pastor_whatsapp, i.criado_em, i.protocolo,
+            s.nome || ' ' || s.sobrenome AS semeador
+       FROM igrejas i LEFT JOIN semeadores s ON s.id = i.semeador_id WHERE i.status = 'pendente' ORDER BY i.criado_em`,
+  ).map((l) => ({ ...l, pastorWhatsapp: decifrar(l.pastorWhatsapp), semeador: String(l.semeador ?? '').trim() }));
+  const semeadores = todos<Record<string, unknown>>(
+    `SELECT s.id, s.nome, s.sobrenome, s.whatsapp, s.codigo, s.criado_em, p.nome || ' ' || p.sobrenome AS indicado_por
+       FROM semeadores s LEFT JOIN semeadores p ON p.id = s.pai_id WHERE s.status = 'pendente' ORDER BY s.criado_em`,
+  ).map((l) => ({ ...l, whatsapp: decifrar(l.whatsapp), nivel: l.indicadoPor ? 2 : 1, indicadoPor: String(l.indicadoPor ?? '').trim() }));
+  res.json({ igrejas, semeadores });
+});
+
+admin.post('/aprovacoes/:tipo/:id', (req, res) => {
+  const tipo = param(req, 'tipo');
+  if (tipo !== 'igrejas' && tipo !== 'semeadores') throw naoEncontrado();
+  const { acao, motivo } = validar(z.object({ acao: z.enum(['aprovar', 'rejeitar']), motivo: z.string().trim().max(500).default('') }), req.body);
+  const id = param(req, 'id');
+  const atual = um<{ status: string; nome: string; indice: string | null }>(
+    tipo === 'igrejas'
+      ? 'SELECT status, nome_fantasia AS nome, pastor_whatsapp_indice AS indice FROM igrejas WHERE id = ?'
+      : "SELECT status, nome || ' ' || sobrenome AS nome, whatsapp_indice AS indice FROM semeadores WHERE id = ?",
+    id,
+  );
+  if (!atual) throw naoEncontrado();
+  if (atual.status !== 'pendente') throw new ErroHttp(409, 'Este cadastro já foi analisado.');
+  const status = acao === 'aprovar' ? (tipo === 'igrejas' ? 'ativa' : 'ativo') : (tipo === 'igrejas' ? 'rejeitada' : 'rejeitado');
+  executar(`UPDATE ${tipo} SET status = ?, observacao = ? WHERE id = ?`, status, motivo, id);
+  auditar(req, 'editar', tipo, id, atual.nome, { status: { de: 'pendente', para: status }, ...(motivo ? { motivo } : {}) });
+  // Avisa no celular quem fez o cadastro (se ele usa o app e ativou os avisos).
+  const usuario = atual.indice ? um<{ id: string }>('SELECT id FROM usuarios WHERE whatsapp_indice = ?', atual.indice) : undefined;
+  if (usuario) {
+    const oque = tipo === 'igrejas' ? `O cadastro da ${atual.nome}` : 'Seu cadastro de semeador';
+    void enviarAviso(acao === 'aprovar'
+      ? { titulo: 'Cadastro aprovado!', mensagem: `${oque} foi aprovado. Veja tudo em Meu painel.`, rota: '/painel' }
+      : { titulo: 'Cadastro não aprovado', mensagem: `${oque} não foi aprovado${motivo ? `: ${motivo}` : '.'} Fale com a equipe se tiver dúvidas.`, rota: '/painel' },
+    [usuario.id]).catch(() => {});
+  }
+  res.json({ ok: true, status });
+});
+
+// ---------- Ofertas: detalhe, cupons e registro manual ----------
+
+admin.get('/ofertas/:id', (req, res) => {
+  const o = um<Record<string, unknown>>(
+    `SELECT o.*, i.nome_fantasia AS igreja, i.cidade || '/' || i.uf AS cidade, c.edicao AS campanha,
+            u.nome AS ofertante_nome, u.sobrenome AS ofertante_sobrenome, u.whatsapp AS ofertante_whatsapp, u.excluido_em AS ofertante_excluido
+       FROM ofertas o JOIN igrejas i ON i.id = o.igreja_id JOIN campanhas c ON c.id = o.campanha_id LEFT JOIN usuarios u ON u.id = o.usuario_id
+      WHERE o.id = ?`,
+    param(req, 'id'),
+  );
+  if (!o) throw naoEncontrado('Oferta');
+  const anonima = !!o.anonima;
+  res.json({
+    id: o.id, criadaEm: o.criadaEm, pagaEm: o.pagaEm, status: o.status, quantidade: o.quantidade, valor: o.valor, anonima,
+    origem: o.origem, observacao: o.observacao, registradaPor: o.registradaPor, igreja: o.igreja, cidade: o.cidade, campanha: o.campanha,
+    ofertante: anonima ? 'Anônimo' : o.ofertanteExcluido ? 'Conta excluída' : `${o.ofertanteNome ?? ''} ${o.ofertanteSobrenome ?? ''}`.trim(),
+    whatsapp: anonima || o.ofertanteExcluido ? '' : decifrar(o.ofertanteWhatsapp),
+    cupons: todos('SELECT numero, criado_em FROM cupons WHERE oferta_id = ? ORDER BY numero', String(o.id)),
+    divisao: todos(
+      `SELECT l.papel, l.percentual, l.valor, l.status, l.beneficiario_tipo,
+              CASE l.beneficiario_tipo WHEN 'igreja' THEN (SELECT nome_fantasia FROM igrejas WHERE id = l.beneficiario_id)
+                WHEN 'semeador' THEN (SELECT nome || ' ' || sobrenome FROM semeadores WHERE id = l.beneficiario_id)
+                WHEN 'parceiro' THEN (SELECT nome FROM parceiros WHERE id = l.beneficiario_id) ELSE 'Plataforma' END AS beneficiario
+         FROM lancamentos l WHERE l.oferta_id = ? ORDER BY l.valor DESC`,
+      String(o.id),
+    ),
+  });
+});
+
+admin.get('/ofertas/:id/cupons.csv', (req, res) => {
+  const id = param(req, 'id');
+  if (!um('SELECT 1 FROM ofertas WHERE id = ?', id)) throw naoEncontrado('Oferta');
+  const linhas = todos<{ numero: string; criadoEm: string }>('SELECT numero, criado_em FROM cupons WHERE oferta_id = ? ORDER BY numero', id);
+  auditar(req, 'exportar', 'ofertas', id, `Cupons da oferta (${linhas.length})`);
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="cupons-oferta-${id.slice(0, 8)}.csv"`);
+  res.send(`\uFEFF${['numero;emitido_em', ...linhas.map((l) => `${celulaCsv(l.numero)};${celulaCsv(l.criadoEm)}`)].join('\n')}`);
+});
+
+// Oferta recebida fora do app (ex.: na igreja). Só administradores.
+admin.post('/ofertas/manual', somenteAdmin, (req, res) => {
+  const d = validar(z.object({
+    igrejaId: z.string(),
+    quantidade: z.number().int().min(1).max(500),
+    anonima: z.boolean().default(false),
+    nome: z.string().trim().max(60).optional(),
+    sobrenome: z.string().trim().max(60).optional(),
+    whatsapp: z.string().transform(soDigitos).refine((v) => v === '' || v.length === 11, 'informe DDD + número').optional(),
+    observacao: z.string().trim().min(3, 'diga como a oferta foi recebida (ex.: dinheiro no culto de domingo)').max(300),
+  }), req.body);
+  const r = registrarOfertaManual({ ...d, whatsapp: d.whatsapp || undefined, adminNome: req.admin!.nome });
+  auditar(req, 'criar', 'ofertas', r.id, `Oferta manual de R$ ${r.valor.toFixed(2)}`, {
+    igrejaId: d.igrejaId, quantidade: d.quantidade, anonima: d.anonima, observacao: d.observacao, cupons: r.numeros.length,
+  });
+  res.status(201).json(r);
+});
+
+// ---------- Repasses (só registro: o sistema NÃO transfere dinheiro) ----------
+
+admin.get('/repasses', somenteAdmin, (req, res) => {
+  const campanhaId = query(req, 'campanhaId');
+  const linhas = todos<{ beneficiarioTipo: string; beneficiarioId: string | null; aPagar: number; pago: number; lancamentos: number }>(
+    `SELECT beneficiario_tipo, beneficiario_id,
+            ROUND(COALESCE(SUM(CASE WHEN status = 'a_pagar' THEN valor END), 0), 2) AS a_pagar,
+            ROUND(COALESCE(SUM(CASE WHEN status = 'pago' THEN valor END), 0), 2) AS pago, COUNT(*) AS lancamentos
+       FROM lancamentos ${campanhaId ? 'WHERE campanha_id = ?' : ''}
+      GROUP BY beneficiario_tipo, beneficiario_id ORDER BY a_pagar DESC`,
+    ...(campanhaId ? [campanhaId] : []),
+  );
+  const dados = (tipo: string, id: string | null) => {
+    if (tipo === 'igreja') return um<{ nome: string; tipoChavePix: string; chavePix: string }>('SELECT nome_fantasia AS nome, tipo_chave_pix, chave_pix FROM igrejas WHERE id = ?', id);
+    if (tipo === 'semeador') return um<{ nome: string; tipoChavePix: string; chavePix: string }>("SELECT nome || ' ' || sobrenome AS nome, 'chave' AS tipo_chave_pix, chave_pix FROM semeadores WHERE id = ?", id);
+    if (tipo === 'parceiro') return um<{ nome: string; tipoChavePix: string; chavePix: string }>('SELECT nome, tipo_chave_pix, chave_pix FROM parceiros WHERE id = ?', id);
+    return { nome: 'Plataforma (Renovando)', tipoChavePix: '', chavePix: '' };
+  };
+  res.json(linhas.map((l) => {
+    const b = dados(l.beneficiarioTipo, l.beneficiarioId);
+    return { ...l, nome: b?.nome ?? '(removido)', tipoChavePix: b?.tipoChavePix ?? '', chavePix: decifrar(b?.chavePix ?? '') };
+  }));
+});
+
+const tipoBeneficiario = (t: string) => {
+  if (!['igreja', 'semeador', 'parceiro', 'plataforma'].includes(t)) throw naoEncontrado();
+  return t as TipoBeneficiario;
+};
+
+admin.get('/repasses/:tipo/:id', somenteAdmin, (req, res) => {
+  const tipo = tipoBeneficiario(param(req, 'tipo'));
+  const id = tipo === 'plataforma' ? null : param(req, 'id');
+  res.json({
+    saldo: saldo(tipo, id),
+    movimentacoes: movimentacoes(tipo, id, 200),
+    pagamentos: todos('SELECT id, valor, referencia, observacao, admin_nome, criado_em FROM pagamentos_repasse WHERE beneficiario_tipo = ? AND beneficiario_id IS ? ORDER BY criado_em DESC', tipo, id),
+  });
+});
+
+// Marca como pago o saldo a receber, DEPOIS que a equipe fez o pagamento por fora (banco/gateway).
+admin.post('/repasses/:tipo/:id/pagar', somenteAdmin, (req, res) => {
+  const tipo = tipoBeneficiario(param(req, 'tipo'));
+  const id = tipo === 'plataforma' ? null : param(req, 'id');
+  const d = validar(z.object({
+    referencia: z.string().trim().min(3, 'informe a referência do pagamento (ex.: id do comprovante)').max(120),
+    observacao: z.string().trim().max(300).default(''),
+  }), req.body);
+  const r = transacao(() => registrarPagamento({ tipo, id, ...d, adminNome: req.admin!.nome }));
+  if (!r) throw new ErroHttp(400, 'Não há saldo a receber para este beneficiário.');
+  auditar(req, 'registrar_pagamento', 'repasses', id, `Repasse de R$ ${r.valor.toFixed(2)} (${tipo})`, { valor: r.valor, referencia: d.referencia });
+  res.json(r);
+});
+
+// ---------- Sorteios (resumo) ----------
+
+admin.get('/sorteios/resumo', (_req, res) => {
+  res.json(um(
+    `SELECT COUNT(*) AS total, COUNT(ganhador_cupom_id) AS distribuidos, COUNT(*) - COUNT(ganhador_cupom_id) AS pendentes,
+            COALESCE(SUM(valor_estimado), 0) AS valor_total,
+            COALESCE(SUM(CASE WHEN ganhador_cupom_id IS NOT NULL THEN valor_estimado END), 0) AS valor_distribuido,
+            MIN(CASE WHEN ganhador_cupom_id IS NULL THEN data_sorteio END) AS proximo
+       FROM premios p JOIN campanhas c ON c.id = p.campanha_id WHERE c.ativa = 1`,
+  ));
+});
 
 // ---------- Panfleto da igreja ----------
 
@@ -821,7 +1047,9 @@ admin.get('/dashboard', (req, res) => {
             (SELECT COUNT(*) FROM igrejas WHERE status = 'ativa') AS igrejasAtivas`,
   )!;
   const { igrejasAtivas, ...pendencias } = contagens;
+  const camp = f.campanhaId ? um<{ metaOfertas: number }>('SELECT meta_ofertas FROM campanhas WHERE id = ?', f.campanhaId) : undefined;
   res.json({
+    meta: camp?.metaOfertas ?? 0,
     resumo: resumo(f),
     porDia: porDia({ ...f, de: desde }),
     topIgrejas: porIgreja(f, 8),

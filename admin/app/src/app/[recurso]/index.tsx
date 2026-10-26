@@ -4,13 +4,14 @@ import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { FlatList, RefreshControl, Text, View } from 'react-native';
 import { api, baixarArquivo, urlImagem } from '@/api';
-import { BotaoNovo, Chips, Info, Vazio } from '@/components/admin';
+import { BotaoNovo, Chips, GradeKpi, Info, Kpi, Vazio } from '@/components/admin';
 import { Aviso, Botao, Carregando, Cartao, s as ui } from '@/components/ui';
 import { RECURSOS } from '@/recursos';
 import { useEhAdmin } from '@/store/sessao';
 import { cores, espaco, raio } from '@/theme';
 import { useCampanhas } from '@/tipos';
 import { confirmar } from '@/utils/confirmar';
+import { moeda } from '@/utils/format';
 
 type Linha = Record<string, any> & { id: string };
 
@@ -22,6 +23,13 @@ export default function Lista() {
   const [status, setStatus] = useState(statusInicial ?? '');
 
   // Prêmios: escolher a campanha (padrão: a ativa).
+  // Resumo dos sorteios da campanha ativa (na lista de prêmios).
+  const resumoSorteios = useQuery({
+    queryKey: ['sorteios-resumo'],
+    queryFn: () => api<{ total: number; pendentes: number; distribuidos: number; valorTotal: number; valorDistribuido: number }>('/sorteios/resumo'),
+    enabled: recurso === 'premios',
+  });
+
   // PDF do panfleto da igreja (1 ou 6 por folha A4).
   const panfleto = useMutation({
     mutationFn: ({ id, slug, porPagina }: { id: string; slug: string; porPagina: 1 | 6 }) =>
@@ -72,6 +80,13 @@ export default function Lista() {
         ListHeaderComponent={
           <View style={{ gap: espaco.md }}>
             {r.descricao ? <Text style={{ color: cores.textoSuave, lineHeight: 20 }}>{r.descricao}</Text> : null}
+            {ehPremios && resumoSorteios.data ? (
+              <GradeKpi>
+                <Kpi icone="gift-outline" rotulo="Sorteios" valor={String(resumoSorteios.data.total)} detalhe={moeda(resumoSorteios.data.valorTotal)} />
+                <Kpi icone="time-outline" rotulo="Pendentes" valor={String(resumoSorteios.data.pendentes)} />
+                <Kpi icone="trophy-outline" rotulo="Distribuídos" valor={String(resumoSorteios.data.distribuidos)} detalhe={moeda(resumoSorteios.data.valorDistribuido)} />
+              </GradeKpi>
+            ) : null}
             {ehPremios && campanhas.data ? (
               <Chips opcoes={campanhas.data.map((c) => ({ valor: c.id, rotulo: `${c.edicao}${c.ativa ? ' (ativa)' : ''}` }))}
                 valor={campanhaId} onChange={setCampanhaEscolhida} />

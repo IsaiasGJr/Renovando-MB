@@ -34,6 +34,7 @@ const suites = [
   ['seg2', [envAdmin, dados]],
   ['upload', [envAdmin, raiz]],
   ['producao', [envAdmin, banco]],
+  ['rede', [envAdmin, banco]],
 ];
 
 const inicio = new Date().toISOString();

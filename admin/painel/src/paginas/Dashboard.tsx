@@ -23,8 +23,8 @@ export default function Dashboard() {
       {pend.igrejas + pend.semeadores + pend.shows + (pend.mensagens ?? 0) > 0 ? (
         <div className="alerta info linha">
           <strong>Aguardando sua análise:</strong>
-          {pend.igrejas ? <Link to="/igrejas?status=pendente">{pend.igrejas} igreja(s)</Link> : null}
-          {pend.semeadores ? <Link to="/semeadores">{pend.semeadores} semeador(es)</Link> : null}
+          {pend.igrejas ? <Link to="/aprovacoes">{pend.igrejas} igreja(s)</Link> : null}
+          {pend.semeadores ? <Link to="/aprovacoes">{pend.semeadores} semeador(es)</Link> : null}
           {pend.shows ? <Link to="/shows">{pend.shows} pedido(s) de show</Link> : null}
           {pend.mensagens ? <Link to="/mensagens">{pend.mensagens} mensagem(ns) nova(s)</Link> : null}
         </div>
@@ -37,6 +37,19 @@ export default function Dashboard() {
         <Kpi icone={Percent} rotulo="Conversão do PIX" valor={`${d.resumo.conversao.toLocaleString('pt-BR')}%`} detalhe="ofertas geradas que foram pagas" />
         <Kpi icone={Building2} rotulo="Igrejas ativas" valor={numero(d.igrejasAtivas)} detalhe={pend.igrejas ? `${pend.igrejas} pendente(s)` : 'nenhuma pendente'} />
       </div>
+
+      {d.meta > 0 ? (
+        <div className="cartao">
+          <div className="linha" style={{ justifyContent: 'space-between' }}>
+            <h2 style={{ margin: 0 }}>Meta da campanha</h2>
+            <strong>{moeda(d.resumo.arrecadado)} de {moeda(d.meta)} ({Math.min(100, Math.round((d.resumo.arrecadado / d.meta) * 1000) / 10).toLocaleString('pt-BR')}%)</strong>
+          </div>
+          <div style={{ height: 12, borderRadius: 999, background: 'var(--primaria-clara)', marginTop: 10, overflow: 'hidden' }}
+            role="progressbar" aria-valuemin={0} aria-valuemax={d.meta} aria-valuenow={d.resumo.arrecadado}>
+            <div style={{ width: `${Math.min(100, (d.resumo.arrecadado / d.meta) * 100)}%`, height: '100%', background: 'linear-gradient(90deg, #7E276A, #5C0047)' }} />
+          </div>
+        </div>
+      ) : null}
 
       <div className="cartao">
         <h2>Arrecadação por dia · últimos 30 dias</h2>

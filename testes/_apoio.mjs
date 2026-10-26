@@ -32,6 +32,7 @@ export async function igrejaTemporaria(db, envAdmin, extra = {}) {
 /** Apaga a igreja de teste com as ofertas e cupons dela. */
 export function apagarIgreja(db, id) {
   db.prepare('UPDATE premios SET ganhador_cupom_id = NULL, ganhador_numero = NULL, ganhador_nome = NULL, ganhador_cidade = NULL, sorteado_em = NULL WHERE ganhador_cupom_id IN (SELECT c.id FROM cupons c JOIN ofertas o ON o.id = c.oferta_id WHERE o.igreja_id = ?)').run(id);
+  db.prepare('DELETE FROM lancamentos WHERE oferta_id IN (SELECT id FROM ofertas WHERE igreja_id = ?)').run(id);
   db.prepare('DELETE FROM cupons WHERE oferta_id IN (SELECT id FROM ofertas WHERE igreja_id = ?)').run(id);
   db.prepare('DELETE FROM ofertas WHERE igreja_id = ?').run(id);
   db.prepare('DELETE FROM igrejas WHERE id = ?').run(id);
@@ -40,6 +41,7 @@ export function apagarIgreja(db, id) {
 /** Apaga de vez as contas de teste (com ofertas e cupons delas). */
 export function apagarContas(db, ...ids) {
   for (const id of ids.filter(Boolean)) {
+    db.prepare('DELETE FROM lancamentos WHERE oferta_id IN (SELECT id FROM ofertas WHERE usuario_id = ?)').run(id);
     db.prepare('DELETE FROM cupons WHERE usuario_id = ? OR oferta_id IN (SELECT id FROM ofertas WHERE usuario_id = ?)').run(id, id);
     db.prepare('DELETE FROM ofertas WHERE usuario_id = ?').run(id);
     db.prepare('DELETE FROM usuarios WHERE id = ?').run(id);

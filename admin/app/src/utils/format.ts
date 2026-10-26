@@ -2,7 +2,12 @@ export const moeda = (v: number) => (v ?? 0).toLocaleString('pt-BR', { style: 'c
 export const moedaCurta = (v: number) =>
   v >= 1000 ? `R$ ${(v / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} mil` : `R$ ${Math.round(v)}`;
 export const numero = (v: number) => (v ?? 0).toLocaleString('pt-BR');
-export const data = (iso?: string | null) => (iso ? new Date(iso).toLocaleDateString('pt-BR') : '—');
+/** Data sem hora ("2026-08-10") é mostrada como está: lida como UTC, voltaria um dia no fuso do Brasil. */
+const soData = (iso: string) => {
+  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : null;
+};
+export const data = (iso?: string | null) => (iso ? soData(iso) ?? new Date(iso).toLocaleDateString('pt-BR') : '—');
 export const dataHora = (iso?: string | null) =>
   iso
     ? new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })

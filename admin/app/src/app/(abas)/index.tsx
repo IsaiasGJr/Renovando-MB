@@ -66,6 +66,18 @@ export default function Inicio() {
               <Kpi icone="trending-up" rotulo="Conversão do PIX" valor={`${d.resumo.conversao.toLocaleString('pt-BR')}%`} detalhe="PIX gerados que foram pagos" />
               <Kpi icone="business" rotulo="Igrejas ativas" valor={numero(d.igrejasAtivas)} />
             </GradeKpi>
+            {d.meta > 0 ? (
+              <View style={{ gap: 6 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                  <Text style={{ fontWeight: '700', color: cores.texto }}>Meta da campanha</Text>
+                  <Text style={{ color: cores.textoSuave }}>{Math.min(100, Math.round((d.resumo.arrecadado / d.meta) * 1000) / 10).toLocaleString('pt-BR')}% de {moeda(d.meta)}</Text>
+                </View>
+                <View style={{ height: 10, borderRadius: 999, backgroundColor: cores.primariaClara, overflow: 'hidden' }}
+                  accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: d.meta, now: d.resumo.arrecadado }}>
+                  <View style={{ width: `${Math.min(100, (d.resumo.arrecadado / d.meta) * 100)}%`, height: '100%', backgroundColor: cores.primaria }} />
+                </View>
+              </View>
+            ) : null}
 
             <Cartao>
               <Titulo>Arrecadação · últimos 30 dias</Titulo>

@@ -8,6 +8,7 @@ import { api, baixarPanfleto, BASE_URL } from '@/api';
 import { Destaque } from '@/components/Conteudo';
 import { LogoIgreja } from '@/components/Igrejas';
 import { Aviso, Botao, Carregando, Cartao, s as ui } from '@/components/ui';
+import type { Movimentacao } from '@/types';
 import { useAuth } from '@/store/auth';
 import { cores, espaco, raio } from '@/theme';
 import { moeda, numero } from '@/utils/format';
@@ -40,7 +41,7 @@ export default function Painel() {
   const token = useAuth((a) => a.token);
   const q = useQuery({ queryKey: ['painel', token], queryFn: api.painel, enabled: !!token });
   const p = q.data;
-  const vazio = p && !p.igrejas.length && !p.semeador;
+  const vazio = p && !p.igrejas.length && !p.semeador && !p.parceiro;
 
   return (
     <SafeAreaView style={ui.tela} edges={['bottom']}>
@@ -75,7 +76,8 @@ export default function Painel() {
             {i.status === 'ativa' ? (
               <>
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: espaco.sm }}>
-                  <Numero rotulo={`Repasse à igreja (${p.percentuais.igreja}%)`} valor={moeda(i.repasse)} destaque />
+                  <Numero rotulo="A receber da equipe" valor={moeda(i.saldo.aReceber)} destaque />
+                  <Numero rotulo="Já recebido" valor={moeda(i.saldo.recebido)} />
                   <Numero rotulo="Arrecadado" valor={moeda(i.arrecadado)} />
                   <Numero rotulo="Ofertas pagas" valor={numero(i.ofertas)} />
                   <Numero rotulo="Números da sorte" valor={numero(i.cupons)} />
@@ -104,13 +106,37 @@ export default function Painel() {
                   <Text style={{ color: cores.primariaEscura, fontSize: 28, fontWeight: '900', letterSpacing: 3 }}>{p.semeador.codigo}</Text>
                 </View>
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: espaco.sm }}>
-                  <Numero rotulo={`Sua participação (${p.percentuais.semeador}%)`} valor={moeda(p.semeador.comissao)} destaque />
+                  <Numero rotulo="A receber" valor={moeda(p.semeador.saldo.aReceber)} destaque />
+                  <Numero rotulo="Já recebido" valor={moeda(p.semeador.saldo.recebido)} />
                   <Numero rotulo="Volume das igrejas ativas" valor={moeda(p.semeador.volume)} />
                   <Numero rotulo="Igrejas vinculadas" valor={numero(p.semeador.igrejas.length)} />
-                  <Numero rotulo="Semeadores indicados" valor={numero(p.semeador.semeadoresIndicados)} />
                 </View>
                 <Botao titulo="Enviar convite para uma igreja" icone="share-social-outline"
                   onPress={() => Share.share({ message: `Cadastre sua igreja na campanha Renovando com o meu código ${p.semeador!.codigo}: ${BASE_URL}/indicacao/${p.semeador!.codigo}` })} />
+                {p.semeador.nivel === 1 ? (
+                  <View style={{ gap: espaco.sm }}>
+                    <Text style={{ fontWeight: '800', color: cores.texto }}>Sua rede (semeadores N2)</Text>
+                    <Text style={{ color: cores.textoSuave, fontSize: 13 }}>
+                      Quem se cadastra pelo seu convite entra como N2 na sua rede. Você recebe uma parte das ofertas das igrejas que eles indicarem.
+                    </Text>
+                    <Botao titulo="Convidar um semeador N2" icone="person-add-outline" variante="contorno"
+                      onPress={() => Share.share({ message: `Seja um semeador do Renovando na minha rede: ${BASE_URL}/semeador/${p.semeador!.codigo}` })} />
+                    {p.semeador.rede.length === 0 ? (
+                      <Text style={{ color: cores.textoSuave, fontSize: 13 }}>Ninguém na sua rede ainda.</Text>
+                    ) : p.semeador.rede.map((n2, k) => (
+                      <View key={k} style={{ flexDirection: 'row', alignItems: 'center', gap: espaco.sm, paddingVertical: 4 }}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ color: cores.texto, fontWeight: '700' }}>{n2.nome}</Text>
+                          <Text style={{ color: cores.textoSuave, fontSize: 12 }}>{numero(n2.igrejas)} igreja(s) · {moeda(n2.volume)}</Text>
+                        </View>
+                        <Selo status={n2.status} />
+                      </View>
+                    ))}
+                  </View>
+                ) : (
+                  <Text style={{ color: cores.textoSuave, fontSize: 13 }}>Você é semeador N2: suas igrejas usam a divisão com N2 da campanha.</Text>
+                )}
+                <Movimentacoes lista={p.semeador.movimentacoes} />
                 {p.semeador.igrejas.map((i) => (
                   <View key={i.id} style={{ flexDirection: 'row', alignItems: 'center', gap: espaco.sm, paddingVertical: 4 }}>
                     <View style={{ flex: 1 }}>
@@ -126,8 +152,44 @@ export default function Painel() {
             )}
           </Cartao>
         ) : null}
+        {p?.parceiro ? (
+          <Cartao style={{ gap: espaco.md }}>
+            <Text style={{ fontSize: 17, fontWeight: '800', color: cores.texto }}>Parceiro · {p.parceiro.nome}</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: espaco.sm }}>
+              <Numero rotulo="A receber" valor={moeda(p.parceiro.saldo.aReceber)} destaque />
+              <Numero rotulo="Já recebido" valor={moeda(p.parceiro.saldo.recebido)} />
+            </View>
+            {p.parceiro.campanhas.map((c) => (
+              <View key={c.edicao} style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <Text style={{ color: cores.texto, fontWeight: '700' }}>{c.edicao}{c.ativa ? ' (ativa)' : ''}</Text>
+                <Text style={{ color: cores.textoSuave }}>{moeda(c.totalOfertas)} em ofertas</Text>
+              </View>
+            ))}
+            <Movimentacoes lista={p.parceiro.movimentacoes} />
+          </Cartao>
+        ) : null}
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+/** Últimos repasses (sem dados de quem ofertou): o que já foi pago e o que falta. */
+function Movimentacoes({ lista }: { lista: Movimentacao[] }) {
+  if (!lista.length) return null;
+  return (
+    <View style={{ gap: 6 }}>
+      <Text style={{ fontWeight: '800', color: cores.texto }}>Movimentações</Text>
+      {lista.slice(0, 10).map((m) => (
+        <View key={m.id} style={{ flexDirection: 'row', justifyContent: 'space-between', gap: espaco.sm, paddingVertical: 2 }}>
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: cores.texto, fontSize: 13 }} numberOfLines={1}>{m.igreja}</Text>
+            <Text style={{ color: cores.textoSuave, fontSize: 12 }}>{m.papel} · {m.status === 'pago' ? 'pago' : 'a receber'}</Text>
+          </View>
+          <Text style={{ color: m.status === 'pago' ? cores.sucesso : cores.texto, fontWeight: '700' }}>{moeda(m.valor)}</Text>
+        </View>
+      ))}
+      <Text style={{ color: cores.textoFraco, fontSize: 11 }}>Os valores são pagos pela equipe do Renovando, por PIX, na chave cadastrada.</Text>
+    </View>
   );
 }
 

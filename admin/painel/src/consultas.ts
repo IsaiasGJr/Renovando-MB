@@ -4,6 +4,7 @@ import { api } from './api';
 // Fica fora das páginas: o menu usa o dashboard (pendências) sem carregar o código dos gráficos.
 
 export type DadosDashboard = {
+  meta: number;
   resumo: { arrecadado: number; ofertas: number; cupons: number; ofertantes: number; ticketMedio: number; conversao: number };
   porDia: { dia: string; valor: number; ofertas: number }[];
   topIgrejas: { id: string; igreja: string; cidade: string; uf: string; valor: number; ofertas: number }[];

@@ -19,6 +19,7 @@ import { provedorPix } from '../../../compartilhado/src/pagamentos.ts';
 import { TOKEN_VALIDO } from '../../../compartilhado/src/avisos.ts';
 import { dataEmissao, gerarImagemCupom } from '../../../compartilhado/src/cupom.ts';
 import { pdfPanfletoDaIgreja } from '../../../compartilhado/src/panfleto.ts';
+import { movimentacoes, saldo } from '../../../compartilhado/src/repasses.ts';
 import { cifrar, indice } from '../../../compartilhado/src/cripto.ts';
 import { cachePublico, limitar, limitePorIp } from '../../../compartilhado/src/seguranca.ts';
 import { env } from '../env.ts';
@@ -177,8 +178,10 @@ const novoSemeador = z.object({
 publico.post('/semeadores', limiteCadastro, (req, res) => {
   const { codigoIndicacao, ...d } = validar(novoSemeador, req.body);
   const pai = codigoIndicacao
-    ? um<{ id: string }>("SELECT id FROM semeadores WHERE codigo = ? AND status = 'ativo'", codigoIndicacao.toUpperCase())
+    ? um<{ id: string; paiId: string | null }>("SELECT id, pai_id FROM semeadores WHERE codigo = ? AND status = 'ativo'", codigoIndicacao.toUpperCase())
     : undefined;
+  if (codigoIndicacao && !pai) throw new ErroHttp(400, 'Código de indicação não encontrado.');
+  if (pai?.paiId) throw new ErroHttp(400, 'Este código é de um semeador N2, que não pode convidar outros semeadores. Peça o código ao semeador N1.');
   const codigo = `${d.nome.slice(0, 3).toUpperCase().normalize('NFD').replace(/[^A-Z]/g, '')}${randomInt(1000, 9999)}`;
   inserir('semeadores', {
     id: novoId(), ...d, whatsapp: cifrar(d.whatsapp), whatsappIndice: indice(d.whatsapp), cpf: cifrar(d.cpf), chavePix: cifrar(d.chavePix),
@@ -422,17 +425,42 @@ publico.get('/me/painel', exigirUsuario, (req, res) => {
   const totais = totaisDe([...new Set([...minhas, ...vinculadas].map((i) => i.id))]);
   const igrejas = minhas.map((i) => {
     const t = totais.get(i.id) ?? zerado;
-    return { ...i, ...t, repasse: Math.round(t.arrecadado * percentuais.igreja) / 100 };
+    return { ...i, ...t, repasse: Math.round(t.arrecadado * percentuais.igreja) / 100, saldo: saldo('igreja', i.id) };
   });
 
   let semeador = null;
   if (s) {
     const lista = vinculadas.map((i) => ({ ...i, arrecadado: (totais.get(i.id) ?? zerado).arrecadado }));
     const volume = lista.filter((i) => i.status === 'ativa').reduce((acc, i) => acc + i.arrecadado, 0);
-    const indicados = um<{ n: number }>('SELECT COUNT(*) AS n FROM semeadores WHERE pai_id = ?', s.id)!.n;
-    semeador = { ...s, igrejas: lista, volume, comissao: Math.round(volume * percentuais.semeador) / 100, semeadoresIndicados: indicados };
+    const pai = um<{ paiId: string | null }>('SELECT pai_id FROM semeadores WHERE id = ?', s.id)!;
+    // N1 vê os N2 da rede dele (só nome, igrejas e volume; nada de dados pessoais).
+    const rede = pai.paiId ? [] : todos<{ id: string; nome: string; sobrenome: string; status: string }>(
+      'SELECT id, nome, sobrenome, status FROM semeadores WHERE pai_id = ? ORDER BY nome', s.id,
+    ).map((n2) => {
+      const v = um<{ igrejas: number; volume: number }>(
+        `SELECT COUNT(DISTINCT i.id) AS igrejas, COALESCE(SUM(CASE WHEN o.status = 'paga' THEN o.valor END), 0) AS volume
+           FROM igrejas i LEFT JOIN ofertas o ON o.igreja_id = i.id WHERE i.semeador_id = ?`, n2.id,
+      )!;
+      return { nome: `${n2.nome} ${n2.sobrenome.charAt(0)}.`.trim(), status: n2.status, ...v };
+    });
+    semeador = {
+      ...s, nivel: pai.paiId ? 2 : 1, igrejas: lista, volume, comissao: Math.round(volume * percentuais.semeador) / 100,
+      semeadoresIndicados: rede.length, rede, saldo: saldo('semeador', s.id), movimentacoes: movimentacoes('semeador', s.id, 20),
+    };
   }
-  res.json({ igrejas, semeador, percentuais });
+
+  // Parceiro da campanha (entra com o WhatsApp cadastrado pela equipe): saldo e movimentações, sem dados de ofertantes.
+  const p = um<{ id: string; nome: string }>('SELECT id, nome FROM parceiros WHERE whatsapp_indice = ? AND ativo = 1', u.whatsappIndice);
+  const parceiro = p ? {
+    ...p,
+    campanhas: todos<{ edicao: string; ativa: number; totalOfertas: number }>(
+      `SELECT c.edicao, c.ativa, COALESCE((SELECT SUM(valor) FROM ofertas o WHERE o.campanha_id = c.id AND o.status = 'paga'), 0) AS total_ofertas
+         FROM campanhas c WHERE c.parceiro_id = ? ORDER BY c.criado_em DESC`, p.id,
+    ).map((c) => ({ ...c, ativa: !!c.ativa })),
+    saldo: saldo('parceiro', p.id),
+    movimentacoes: movimentacoes('parceiro', p.id, 20),
+  } : null;
+  res.json({ igrejas, semeador, parceiro, percentuais });
 });
 
 // ---------- Panfleto da igreja (para imprimir) ----------

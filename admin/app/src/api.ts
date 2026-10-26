@@ -65,7 +65,7 @@ async function reduzir(imagem: { uri: string; tipo?: string | null; largura?: nu
 }
 
 /** Envia uma imagem escolhida no celular e devolve a URL salva no servidor. */
-export async function enviarImagem(original: { uri: string; nome?: string | null; tipo?: string | null; largura?: number; altura?: number }) {
+export async function enviarImagem(original: { uri: string; nome?: string | null; tipo?: string | null; largura?: number; altura?: number }, finalidade?: 'cupom' | 'panfleto') {
   let imagem: { uri: string; nome?: string | null; tipo?: string | null } = original;
   try {
     imagem = (await reduzir(original)) ?? original;
@@ -80,7 +80,7 @@ export async function enviarImagem(original: { uri: string; nome?: string | null
     // No React Native o FormData aceita { uri, name, type } direto.
     fd.append('arquivo', { uri: imagem.uri, name: imagem.nome ?? 'imagem.jpg', type: imagem.tipo ?? 'image/jpeg' } as unknown as Blob);
   }
-  const r = await fetch(`${BASE_URL}/api/upload`, { method: 'POST', headers: cabecalhos(), body: fd });
+  const r = await fetch(`${BASE_URL}/api/upload${finalidade ? `?finalidade=${finalidade}` : ''}`, { method: 'POST', headers: cabecalhos(), body: fd });
   const { url } = await tratar<{ url: string }>(r);
   return url;
 }

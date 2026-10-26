@@ -57,6 +57,12 @@ app.get('/indicacao/:codigo', (req, res) => {
   res.send(paginaLink('Cadastre sua igreja no Renovando', `Você foi convidado para cadastrar sua igreja na campanha. Código de indicação: ${codigo}.`, `renovando://cadastro-igreja?ref=${codigo}`));
 });
 
+app.get('/semeador/:codigo', (req, res) => {
+  const codigo = String(req.params.codigo).toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 20);
+  res.setHeader('Content-Security-Policy', cspLink);
+  res.send(paginaLink('Seja um semeador do Renovando', `Você foi convidado para a rede de semeadores da campanha. Código de indicação: ${codigo}.`, `renovando://seja-semeador?ref=${codigo}`));
+});
+
 app.get('/excluir-conta', (_req, res) => {
   res.setHeader('Content-Security-Policy', cspPagina);
   res.setHeader('Cache-Control', 'no-cache');

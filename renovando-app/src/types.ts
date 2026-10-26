@@ -131,13 +131,22 @@ export type MensagemContato = { nome: string; sobrenome: string; whatsapp: strin
 
 export type PainelIgreja = {
   id: string; slug: string; nomeFantasia: string; cidade: string; uf: string; status: string; logoUrl: string; protocolo: string;
-  arrecadado: number; ofertas: number; cupons: number; repasse: number;
+  arrecadado: number; ofertas: number; cupons: number; repasse: number; saldo: Saldo;
 };
+/** Repasses: o que já foi pago pela equipe e o que ainda falta receber. */
+export type Saldo = { aReceber: number; recebido: number; total: number };
+export type Movimentacao = { id: string; papel: string; percentual: number; valor: number; status: 'a_pagar' | 'pago'; criadoEm: string; campanha: string; igreja: string };
 export type Painel = {
   igrejas: PainelIgreja[];
   semeador: null | {
     nome: string; codigo: string; status: string; volume: number; comissao: number; semeadoresIndicados: number;
+    nivel: 1 | 2; saldo: Saldo; movimentacoes: Movimentacao[];
+    rede: { nome: string; status: string; igrejas: number; volume: number }[];
     igrejas: { id: string; nomeFantasia: string; cidade: string; uf: string; status: string; arrecadado: number }[];
+  };
+  parceiro: null | {
+    nome: string; saldo: Saldo; movimentacoes: Movimentacao[];
+    campanhas: { edicao: string; ativa: boolean; totalOfertas: number }[];
   };
   percentuais: { igreja: number; semeador: number };
 };

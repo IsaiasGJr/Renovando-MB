@@ -6,6 +6,7 @@ export type Resumo = { arrecadado: number; ofertas: number; cupons: number; ofer
 export type PorIgreja = { id: string; igreja: string; cidade: string; uf: string; valor: number; ofertas: number };
 
 export type Dashboard = {
+  meta: number;
   resumo: Resumo;
   porDia: Dia[];
   topIgrejas: PorIgreja[];
@@ -18,9 +19,12 @@ export type Dashboard = {
 
 export type Campanha = {
   id: string; edicao: string; titulo: string; subtitulo: string; descricao: string; valorCupom: number;
-  divisao: { rotulo: string; percentual: number }[]; inicio: string | null; fim: string | null; ativa: boolean;
+  divisao: { rotulo: string; percentual: number; tipo?: string }[]; inicio: string | null; fim: string | null; ativa: boolean;
   imagemCupom?: string;
   imagemPanfleto?: string;
+  divisaoN2?: { rotulo: string; percentual: number; tipo?: string }[];
+  parceiroId?: string | null;
+  metaOfertas?: number;
 };
 
 export const ROTULO_STATUS_OFERTA: Record<string, string> = {

@@ -1,10 +1,12 @@
 import { randomInt } from 'node:crypto';
 import { executar, inserir, todos, transacao, um } from './db.ts';
 import { enviarAviso } from './avisos.ts';
+import { cifrar, indice } from './cripto.ts';
 import { provedorPix } from './pagamentos.ts';
+import { comTipos, lancarRepasses, regraDaIgreja, type ItemDivisao } from './repasses.ts';
 import { ErroHttp, naoEncontrado, novoId } from './util.ts';
 
-export type Divisao = { rotulo: string; percentual: number }[];
+export type Divisao = ItemDivisao[];
 
 type CampanhaDb = {
   id: string;
@@ -14,14 +16,20 @@ type CampanhaDb = {
   descricao: string;
   valorCupom: number;
   divisaoJson: string;
+  divisaoN2Json?: string;
   inicio: string | null;
   fim: string | null;
   ativa: number;
 };
 
 export function formatarCampanha(c: CampanhaDb) {
-  const { divisaoJson, ativa, ...resto } = c;
-  return { ...resto, ativa: !!ativa, divisao: JSON.parse(divisaoJson) as Divisao };
+  const { divisaoJson, divisaoN2Json, ativa, ...resto } = c;
+  return {
+    ...resto,
+    ativa: !!ativa,
+    divisao: comTipos(JSON.parse(divisaoJson) as Divisao),
+    divisaoN2: divisaoN2Json ? comTipos(JSON.parse(divisaoN2Json) as Divisao) : [],
+  };
 }
 
 export function campanhaAtiva() {
@@ -63,7 +71,8 @@ export async function criarOferta(p: { usuarioId?: string; igrejaId: string; qua
     copiaECola: cobranca.copiaECola,
     qrCode: cobranca.qrCodeBase64 ?? '',
     idGateway: cobranca.idNoGateway ?? null,
-    divisaoJson: JSON.stringify(campanha.divisao),
+    // A regra (com ou sem semeador N2) é decidida agora e fica gravada na oferta.
+    divisaoJson: JSON.stringify(regraDaIgreja(p.igrejaId, campanha)),
     expiraEm: new Date(Date.now() + VALIDADE_PIX_MIN * 60_000).toISOString(),
   });
   return buscarOferta(id);
@@ -129,6 +138,8 @@ export function confirmarPagamento(filtro: { id?: string; txid?: string; idNoGat
     if (o.status === 'paga') return { jaPaga: true };
 
     executar("UPDATE ofertas SET status = 'paga', paga_em = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = ?", o.id);
+    // Quanto cada um tem a receber desta oferta (só registro; nada é transferido).
+    lancarRepasses(o.id);
     if (!o.anonima) {
       for (let i = 0; i < o.quantidade; i++) {
         inserir('cupons', {
@@ -275,4 +286,43 @@ export function sortearPremio(premioId: string, numeroInformado?: string) {
     premioId,
   );
   return um('SELECT * FROM premios WHERE id = ?', premioId);
+}
+
+/**
+ * Oferta registrada à mão pela equipe (ex.: recebida na igreja, fora do app).
+ * Já entra como paga: gera os números da sorte (se não for anônima) e os repasses.
+ * Para concorrer, precisa do WhatsApp da pessoa (é por ele que ela vê os cupons no app).
+ */
+export function registrarOfertaManual(p: {
+  igrejaId: string; quantidade: number; anonima: boolean; nome?: string; sobrenome?: string; whatsapp?: string;
+  observacao: string; adminNome: string;
+}) {
+  const campanha = campanhaAtiva();
+  const igreja = um<{ status: string }>('SELECT status FROM igrejas WHERE id = ?', p.igrejaId);
+  if (!igreja || igreja.status !== 'ativa') throw new ErroHttp(400, 'Igreja não encontrada ou ainda não aprovada.');
+  if (!p.anonima && !p.whatsapp) throw new ErroHttp(400, 'Informe o WhatsApp de quem ofertou (ou marque como anônima).');
+
+  return transacao(() => {
+    let usuarioId: string | null = null;
+    if (!p.anonima && p.whatsapp) {
+      const existente = um<{ id: string }>('SELECT id FROM usuarios WHERE whatsapp_indice = ? AND excluido_em IS NULL', indice(p.whatsapp));
+      usuarioId = existente?.id ?? novoId();
+      if (!existente) {
+        inserir('usuarios', {
+          id: usuarioId, nome: p.nome?.trim() || 'Ofertante', sobrenome: p.sobrenome?.trim() ?? '',
+          whatsapp: cifrar(p.whatsapp), whatsappIndice: indice(p.whatsapp),
+        });
+      }
+    }
+    const id = novoId();
+    const valor = Math.round(p.quantidade * campanha.valorCupom * 100) / 100;
+    inserir('ofertas', {
+      id, campanhaId: campanha.id, usuarioId, igrejaId: p.igrejaId, quantidade: p.quantidade, valor, anonima: p.anonima,
+      txid: `MANUAL${id.replace(/-/g, '').slice(0, 19)}`, copiaECola: '', divisaoJson: JSON.stringify(regraDaIgreja(p.igrejaId, campanha)),
+      expiraEm: new Date().toISOString(), origem: 'manual', observacao: p.observacao, registradaPor: p.adminNome,
+    });
+    confirmarPagamento({ id });
+    const numeros = todos<{ numero: string }>('SELECT numero FROM cupons WHERE oferta_id = ? ORDER BY numero', id).map((c) => c.numero);
+    return { id, valor, numeros };
+  });
 }

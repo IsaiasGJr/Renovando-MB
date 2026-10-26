@@ -4,6 +4,7 @@ import { Navigate, NavLink, Outlet, Route, Routes, useNavigate } from 'react-rou
 import {
   BarChart3, Building2, ClipboardList, Flag, Gift, HelpCircle, LayoutDashboard, LogOut,
   MessageSquareQuote, Music, Newspaper, ShieldCheck, Sprout, Users, ImageIcon, Handshake, Images, Inbox, Bell, Scale,
+  ClipboardCheck, LifeBuoy, Wallet,
 } from './componentes/icones';
 import { Simbolo } from './componentes/Marca';
 import { api, lerSessao, salvarSessao, type Admin } from './api';
@@ -15,6 +16,9 @@ import { useDashboard } from './consultas';
 const Auditoria = lazy(() => import('./paginas/Auditoria'));
 const Avisos = lazy(() => import('./paginas/Avisos'));
 const MinhaConta = lazy(() => import('./paginas/MinhaConta'));
+const Aprovacoes = lazy(() => import('./paginas/Aprovacoes'));
+const Repasses = lazy(() => import('./paginas/Repasses'));
+const Ajuda = lazy(() => import('./paginas/Ajuda'));
 const Campanhas = lazy(() => import('./paginas/Campanhas'));
 const Dashboard = lazy(() => import('./paginas/Dashboard'));
 const Premios = lazy(() => import('./paginas/Premios'));
@@ -55,6 +59,9 @@ export default function App() {
         <Route path="auditoria" element={<Auditoria />} />
         <Route path="avisos" element={<Avisos />} />
         <Route path="conta" element={<MinhaConta />} />
+        <Route path="aprovacoes" element={<Aprovacoes />} />
+        <Route path="repasses" element={<Repasses />} />
+        <Route path="ajuda" element={<Ajuda />} />
         <Route path="banners" element={<Banners />} />
         <Route path="parceiros" element={<Parceiros />} />
         <Route path="galeria" element={<GaleriaPalmas />} />
@@ -119,12 +126,14 @@ function Layout({ admin }: { admin: Admin }) {
         {link('/', 'Visão geral', LayoutDashboard)}
         {link('/relatorios', 'Relatórios', BarChart3)}
         {link('/ofertantes', 'Ofertantes', Users)}
+        {ehAdmin ? link('/repasses', 'Repasses', Wallet) : null}
         <div className="grupo">Campanha</div>
         {ehAdmin ? link('/campanhas', 'Campanhas', Flag) : null}
         {link('/premios', 'Prêmios e sorteios', Gift)}
         <div className="grupo">Rede</div>
-        {link('/igrejas', 'Igrejas', Building2, pend?.igrejas)}
-        {link('/semeadores', 'Semeadores', Sprout, pend?.semeadores)}
+        {link('/aprovacoes', 'Aprovações', ClipboardCheck, (pend?.igrejas ?? 0) + (pend?.semeadores ?? 0))}
+        {link('/igrejas', 'Igrejas', Building2)}
+        {link('/semeadores', 'Semeadores', Sprout)}
         <div className="grupo">Conteúdo do app</div>
         {link('/noticias', 'Notícias', Newspaper)}
         {link('/depoimentos', 'Depoimentos', MessageSquareQuote)}
@@ -143,6 +152,7 @@ function Layout({ admin }: { admin: Admin }) {
             {link('/auditoria', 'Registro de atividades', ClipboardList)}
           </>
         ) : null}
+        {link('/ajuda', 'Central de ajuda', LifeBuoy)}
         <div className="rodape">
           <NavLink to="/conta" className="quem-link" onClick={() => setMenuAberto(false)} title="Minha conta">
             <span className="avatar" aria-hidden="true">{admin.nome.charAt(0).toUpperCase()}</span>

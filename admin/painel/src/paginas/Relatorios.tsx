@@ -1,6 +1,7 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import { api, baixar, dataHora, moeda, numero } from '../api';
+import { api, baixar, dataHora, lerSessao, moeda, numero } from '../api';
+import { DetalheOferta, RegistrarOferta } from '../componentes/Ofertas';
 import { BarrasHorizontais, completarDias, GraficoArrecadacao } from '../componentes/Graficos';
 import { Cabecalho, Carregando, Erro, Selo } from '../componentes/ui';
 import { ROTULO_STATUS_OFERTA, type DadosDashboard } from '../consultas';
@@ -42,6 +43,10 @@ export default function Relatorios() {
   });
 
   const [erroCsv, setErroCsv] = useState<unknown>(null);
+  const [detalhe, setDetalhe] = useState<string | null>(null);
+  const [registrando, setRegistrando] = useState(false);
+  const ehAdmin = lerSessao()?.admin.papel === 'admin';
+  const qc = useQueryClient();
   const r = rel.data;
 
   return (
@@ -49,6 +54,7 @@ export default function Relatorios() {
       <Cabecalho titulo="Relatórios" sub="Ofertas, arrecadação e repasses por período">
         <button className={`btn ${aba === 'ofertas' ? '' : 'sec'}`} onClick={() => setAba('ofertas')}>Ofertas</button>
         <button className={`btn ${aba === 'igrejas' ? '' : 'sec'}`} onClick={() => setAba('igrejas')}>Repasses por igreja</button>
+        {ehAdmin ? <button className="btn" onClick={() => setRegistrando(true)}>+ Registrar oferta</button> : null}
         <button className="btn sec" onClick={() => baixar(`/relatorios/ofertas.csv?${qs}`, 'ofertas.csv').catch(setErroCsv)}>
           Exportar CSV
         </button>
@@ -156,7 +162,7 @@ export default function Relatorios() {
                 <tbody>
                   {r.ofertas.length === 0 ? <tr><td colSpan={7} className="vazio">Nenhuma oferta com esses filtros.</td></tr> : null}
                   {r.ofertas.map((o) => (
-                    <tr key={o.id}>
+                    <tr key={o.id} className="clicavel" onClick={() => setDetalhe(o.id)} title="Ver cupons e divisão">
                       <td data-rotulo="Data">{dataHora(o.criadaEm)}</td><td data-titulo>{o.ofertante}</td><td data-rotulo="WhatsApp">{o.whatsapp || '—'}</td>
                       <td data-rotulo="Igreja"><span className="celula">{o.igreja}<div style={{ color: 'var(--texto-3)', fontSize: 12 }}>{o.cidade}</div></span></td>
                       <td data-rotulo="Situação"><Selo status={o.status} /></td>
@@ -176,6 +182,8 @@ export default function Relatorios() {
           </div>
         </>
       )}
+      {detalhe ? <DetalheOferta id={detalhe} onFechar={() => setDetalhe(null)} /> : null}
+      {registrando ? <RegistrarOferta onFechar={() => setRegistrando(false)} onPronto={() => qc.invalidateQueries()} /> : null}
     </div>
   );
 }

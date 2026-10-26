@@ -32,7 +32,7 @@ export function Banners() {
   );
 }
 
-type Parceiro = { id: string; nome: string; logoUrl: string; site: string; ordem: number; ativo: boolean };
+type Parceiro = { id: string; nome: string; logoUrl: string; site: string; ordem: number; ativo: boolean; whatsapp?: string; chavePix?: string; tipoChavePix?: string };
 export function Parceiros() {
   return (
     <CrudPagina<Parceiro>
@@ -46,11 +46,18 @@ export function Parceiros() {
         { nome: 'logoUrl', rotulo: 'Logo', tipo: 'imagem' },
         { nome: 'ordem', rotulo: 'Ordem', tipo: 'numero', padrao: 0 },
         { nome: 'ativo', rotulo: 'Visível no app', tipo: 'checkbox', padrao: true },
+        { nome: 'whatsapp', rotulo: 'WhatsApp do responsável', ajuda: 'Se este parceiro for o parceiro da campanha: com este número ele entra no app (Meu painel) e vê saldo e movimentações.' },
+        {
+          nome: 'tipoChavePix', rotulo: 'Tipo de chave PIX', tipo: 'select', padrao: 'cnpj',
+          opcoes: [{ valor: 'cnpj', rotulo: 'CNPJ' }, { valor: 'cpf', rotulo: 'CPF' }, { valor: 'email', rotulo: 'E-mail' }, { valor: 'telefone', rotulo: 'Telefone' }, { valor: 'aleatoria', rotulo: 'Aleatória' }],
+        },
+        { nome: 'chavePix', rotulo: 'Chave PIX (para os repasses)', ajuda: 'Só administradores definem. Fica criptografada.' },
       ]}
       colunas={[
         { titulo: '', render: (p) => (p.logoUrl ? <img className="miniatura" style={{ objectFit: 'contain', background: '#fff' }} src={p.logoUrl} alt="" /> : null) },
         { titulo: 'Parceiro', render: (p) => p.nome },
         { titulo: 'Site', render: (p) => p.site || '—' },
+        { titulo: 'Acesso ao painel', render: (p) => (p.whatsapp ? p.whatsapp : '—') },
         { titulo: 'Status', render: (p) => <Selo status={p.ativo ? 'ativo' : 'inativo'} /> },
       ]}
     />

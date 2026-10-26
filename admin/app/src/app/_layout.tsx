@@ -54,6 +54,12 @@ export default function RootLayout() {
             <Stack.Screen name="ofertantes" options={{ title: 'Ofertantes' }} />
             <Stack.Screen name="auditoria" options={{ title: 'Registro de atividades' }} />
             <Stack.Screen name="avisos" options={{ title: 'Avisos no celular' }} />
+            <Stack.Screen name="aprovacoes" options={{ title: 'Aprovações' }} />
+            <Stack.Screen name="repasses" options={{ title: 'Repasses' }} />
+            <Stack.Screen name="repasse" options={{ title: 'Repasse' }} />
+            <Stack.Screen name="oferta" options={{ title: 'Oferta' }} />
+            <Stack.Screen name="registrar-oferta" options={{ title: 'Registrar oferta', presentation: 'modal' }} />
+            <Stack.Screen name="ajuda" options={{ title: 'Central de ajuda' }} />
           </Stack.Protected>
         </Stack>
       </QueryClientProvider>

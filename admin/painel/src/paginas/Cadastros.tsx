@@ -92,9 +92,15 @@ export function Igrejas() {
 
 // ---------- Semeadores ----------
 
-type Semeador = { id: string; nome: string; sobrenome: string; whatsapp: string; cpf: string; chavePix: string; codigo: string; status: string; criadoEm: string };
+type Semeador = {
+  id: string; nome: string; sobrenome: string; whatsapp: string; cpf: string; chavePix: string; codigo: string; status: string; criadoEm: string;
+  paiId: string | null; nivel: 1 | 2; indicadoPor: string; igrejas: number; n2: number; observacao: string;
+};
 
 export function Semeadores() {
+  // N1 ativos, para ligar um N2 à rede certa.
+  const n1 = useQuery({ queryKey: ['semeadores', 'n1'], queryFn: () => api<Semeador[]>('/semeadores?status=ativo') });
+  const opcoesN1 = [{ valor: '', rotulo: 'Nenhum (é um N1)' }, ...(n1.data ?? []).filter((x) => !x.paiId).map((x) => ({ valor: x.id, rotulo: `${x.nome} ${x.sobrenome} (${x.codigo})` }))];
   return (
     <CrudPagina<Semeador>
       recurso="semeadores"
@@ -112,13 +118,17 @@ export function Semeadores() {
         { nome: 'cpf', rotulo: 'CPF' },
         { nome: 'chavePix', rotulo: 'Chave PIX' },
         { nome: 'codigo', rotulo: 'Código de indicação', obrigatorio: true },
+        { nome: 'paiId', rotulo: 'Semeador N1 da rede', tipo: 'select', padrao: '', opcoes: opcoesN1, ajuda: 'Preencha só se este semeador for N2 (trazido por um N1).' },
         {
           nome: 'status', rotulo: 'Status', tipo: 'select', padrao: 'ativo',
           opcoes: [{ valor: 'pendente', rotulo: 'Pendente' }, { valor: 'ativo', rotulo: 'Ativo' }, { valor: 'rejeitado', rotulo: 'Rejeitado' }, { valor: 'inativo', rotulo: 'Inativo' }],
         },
+        { nome: 'observacao', rotulo: 'Observação / motivo da recusa', tipo: 'textarea' },
       ]}
       colunas={[
         { titulo: 'Nome', render: (s) => `${s.nome} ${s.sobrenome}` },
+        { titulo: 'Nível', render: (s) => (s.nivel === 2 ? <>N2<div style={{ color: 'var(--texto-3)', fontSize: 12 }}>rede de {s.indicadoPor}</div></> : <>N1{s.n2 ? <div style={{ color: 'var(--texto-3)', fontSize: 12 }}>{s.n2} N2 na rede</div> : null}</>) },
+        { titulo: 'Igrejas', render: (s) => s.igrejas },
         { titulo: 'WhatsApp', render: (s) => s.whatsapp },
         { titulo: 'Código', render: (s) => <code>{s.codigo}</code> },
         { titulo: 'Cadastro', render: (s) => data(s.criadoEm) },

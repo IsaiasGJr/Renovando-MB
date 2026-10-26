@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, Text, View } from 'react-native';
@@ -186,6 +187,7 @@ export default function Relatorios() {
           onEndReachedThreshold={0.4}
           ListFooterComponent={rel.isFetchingNextPage ? <ActivityIndicator color={cores.primaria} /> : null}
           renderItem={({ item: o }) => (
+            <Pressable onPress={() => router.push({ pathname: '/oferta', params: { id: o.id } })} accessibilityRole="button" accessibilityHint="Ver cupons e divisão">
             <Cartao style={{ gap: 6 }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: espaco.sm }}>
                 <Text style={{ fontWeight: '700', color: cores.texto, fontSize: 15, flexShrink: 1 }}>{o.ofertante}</Text>
@@ -197,6 +199,7 @@ export default function Relatorios() {
               <Info rotulo="Cupons">{String(o.quantidade)}</Info>
               <Info rotulo="Situação"><Selo status={o.status} /></Info>
             </Cartao>
+            </Pressable>
           )}
         />
       ) : (

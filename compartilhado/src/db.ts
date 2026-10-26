@@ -239,6 +239,47 @@ db.exec('CREATE UNIQUE INDEX IF NOT EXISTS artistas_slug ON artistas(slug)');
 garantirColuna('campanhas', 'imagem_cupom', "TEXT NOT NULL DEFAULT ''");
 // Arte do panfleto (1200 × 470, como no site): cada igreja baixa com o QR Code dela no quadro branco.
 garantirColuna('campanhas', 'imagem_panfleto', "TEXT NOT NULL DEFAULT ''");
+// Rede de semeadores (N1 traz N2), parceiro da campanha e meta.
+garantirColuna('campanhas', 'divisao_n2_json', "TEXT NOT NULL DEFAULT ''");
+garantirColuna('campanhas', 'parceiro_id', 'TEXT');
+garantirColuna('campanhas', 'meta_ofertas', 'REAL NOT NULL DEFAULT 0');
+// Parceiro da campanha com acesso ao painel (pelo WhatsApp) e dados para o repasse (cifrados).
+garantirColuna('parceiros', 'whatsapp', "TEXT NOT NULL DEFAULT ''");
+garantirColuna('parceiros', 'whatsapp_indice', 'TEXT');
+garantirColuna('parceiros', 'tipo_chave_pix', "TEXT NOT NULL DEFAULT 'cnpj'");
+garantirColuna('parceiros', 'chave_pix', "TEXT NOT NULL DEFAULT ''");
+// Motivo de recusa no cadastro de semeador; origem das ofertas registradas à mão pela equipe.
+garantirColuna('semeadores', 'observacao', "TEXT NOT NULL DEFAULT ''");
+garantirColuna('ofertas', 'origem', "TEXT NOT NULL DEFAULT 'app'");
+garantirColuna('ofertas', 'observacao', "TEXT NOT NULL DEFAULT ''");
+garantirColuna('ofertas', 'registrada_por', "TEXT NOT NULL DEFAULT ''");
+// Repasses: quanto cada um tem a receber de cada oferta (o sistema NÃO transfere dinheiro; só registra).
+db.exec(`CREATE TABLE IF NOT EXISTS lancamentos (
+  id TEXT PRIMARY KEY,
+  oferta_id TEXT NOT NULL REFERENCES ofertas(id),
+  campanha_id TEXT NOT NULL,
+  beneficiario_tipo TEXT NOT NULL CHECK (beneficiario_tipo IN ('igreja','semeador','parceiro','plataforma')),
+  beneficiario_id TEXT,
+  papel TEXT NOT NULL,
+  percentual REAL NOT NULL,
+  valor REAL NOT NULL,
+  status TEXT NOT NULL DEFAULT 'a_pagar' CHECK (status IN ('a_pagar','pago')),
+  pagamento_id TEXT,
+  criado_em TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  pago_em TEXT
+)`);
+db.exec('CREATE INDEX IF NOT EXISTS lancamentos_beneficiario ON lancamentos(beneficiario_tipo, beneficiario_id, status)');
+db.exec('CREATE INDEX IF NOT EXISTS lancamentos_oferta ON lancamentos(oferta_id)');
+db.exec(`CREATE TABLE IF NOT EXISTS pagamentos_repasse (
+  id TEXT PRIMARY KEY,
+  beneficiario_tipo TEXT NOT NULL,
+  beneficiario_id TEXT,
+  valor REAL NOT NULL,
+  referencia TEXT NOT NULL DEFAULT '',
+  observacao TEXT NOT NULL DEFAULT '',
+  admin_nome TEXT NOT NULL,
+  criado_em TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+)`);
 // Cobrança no gateway de pagamento: id lá dentro e imagem do QR Code (quando o gateway manda).
 garantirColuna('ofertas', 'id_gateway', 'TEXT');
 garantirColuna('ofertas', 'qr_code', "TEXT NOT NULL DEFAULT ''");

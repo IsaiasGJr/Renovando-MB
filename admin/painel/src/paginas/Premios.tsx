@@ -1,4 +1,4 @@
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { api, data, moeda } from '../api';
 import { CrudPagina } from '../componentes/CrudPagina';
@@ -17,6 +17,10 @@ export default function Premios() {
   // Sem escolha do usuário, mostra a campanha ativa (ou a mais recente).
   const campanhaId = escolhida || (campanhas.data?.find((c) => c.ativa) ?? campanhas.data?.[0])?.id || '';
 
+  const resumo = useQuery({
+    queryKey: ['sorteios-resumo', campanhaId],
+    queryFn: () => api<{ total: number; pendentes: number; distribuidos: number; valorTotal: number; valorDistribuido: number; proximo: string | null }>('/sorteios/resumo'),
+  });
   const desfazer = useMutation({ mutationFn: (id: string) => api(`/premios/${id}/desfazer-sorteio`, { method: 'POST' }) });
 
   if (!campanhaId) return null;
@@ -32,6 +36,14 @@ export default function Premios() {
         parametros={{ campanhaId }}
         ajustar={(p) => ({ ...p, campanhaId })}
         topo={
+          <>
+          {resumo.data ? (
+            <div className="grade grade-kpi">
+              <div className="cartao kpi"><div className="rotulo">Sorteios</div><div className="valor">{resumo.data.total}</div><div className="detalhe">{moeda(resumo.data.valorTotal)} em prêmios</div></div>
+              <div className="cartao kpi"><div className="rotulo">Pendentes</div><div className="valor">{resumo.data.pendentes}</div><div className="detalhe">{resumo.data.proximo ? `próximo em ${data(resumo.data.proximo)}` : 'nenhum'}</div></div>
+              <div className="cartao kpi"><div className="rotulo">Distribuídos</div><div className="valor">{resumo.data.distribuidos}</div><div className="detalhe">{moeda(resumo.data.valorDistribuido)}</div></div>
+            </div>
+          ) : null}
           <div className="filtros">
             <div className="campo">
               <label htmlFor="p-camp">Campanha</label>
@@ -40,6 +52,7 @@ export default function Premios() {
               </select>
             </div>
           </div>
+          </>
         }
         campos={[
           { nome: 'nome', rotulo: 'Nome do prêmio', obrigatorio: true },

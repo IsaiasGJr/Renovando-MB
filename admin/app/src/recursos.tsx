@@ -1,3 +1,4 @@
+import { api } from '@/api';
 import type Ionicons from '@expo/vector-icons/Ionicons';
 import type { ComponentProps, ReactNode } from 'react';
 import { Text } from 'react-native';
@@ -84,10 +85,14 @@ export const RECURSOS: Record<string, Recurso> = {
       { nome: 'codigo', rotulo: 'Código de indicação', obrigatorio: true },
       { nome: 'status', rotulo: 'Status', tipo: 'select', padrao: 'ativo',
         opcoes: [{ valor: 'pendente', rotulo: 'Pendente' }, { valor: 'ativo', rotulo: 'Ativo' }, { valor: 'rejeitado', rotulo: 'Rejeitado' }, { valor: 'inativo', rotulo: 'Inativo' }] },
+      { nome: 'paiId', rotulo: 'Semeador N1 da rede', tipo: 'select', padrao: '', ajuda: 'Preencha só se este semeador for N2 (trazido por um N1).',
+        carregarOpcoes: async () => [{ valor: '', rotulo: 'Nenhum (é um N1)' }, ...(await api<L[]>('/semeadores?status=ativo'))
+          .filter((x) => !x.paiId).map((x) => ({ valor: String(x.id), rotulo: `${x.nome} ${x.sobrenome} (${x.codigo})` }))] },
+      { nome: 'observacao', rotulo: 'Observação / motivo da recusa', tipo: 'textarea' },
     ],
     item: (l) => ({
       titulo: `${l.nome} ${l.sobrenome}`, sub: `Código ${l.codigo}`, status: <Selo status={l.status} />,
-      infos: [['WhatsApp', l.whatsapp], ['Cadastro', data(l.criadoEm)]],
+      infos: [['Nível', l.nivel === 2 ? `N2 · rede de ${l.indicadoPor}` : `N1${l.n2 ? ` · ${l.n2} N2` : ''}`], ['Igrejas', String(l.igrejas ?? 0)], ['WhatsApp', l.whatsapp], ['Cadastro', data(l.criadoEm)]],
     }),
   },
 
@@ -215,6 +220,10 @@ export const RECURSOS: Record<string, Recurso> = {
       { nome: 'logoUrl', rotulo: 'Logo', tipo: 'imagem' },
       { nome: 'ordem', rotulo: 'Ordem', tipo: 'numero', padrao: 0 },
       { nome: 'ativo', rotulo: 'Visível no app', tipo: 'checkbox', padrao: true },
+      { nome: 'whatsapp', rotulo: 'WhatsApp do responsável', tipo: 'telefone', ajuda: 'Parceiro da campanha entra no app com este número e vê saldo e movimentações.' },
+      { nome: 'tipoChavePix', rotulo: 'Tipo de chave PIX', tipo: 'select', padrao: 'cnpj',
+        opcoes: [{ valor: 'cnpj', rotulo: 'CNPJ' }, { valor: 'cpf', rotulo: 'CPF' }, { valor: 'email', rotulo: 'E-mail' }, { valor: 'telefone', rotulo: 'Telefone' }, { valor: 'aleatoria', rotulo: 'Aleatória' }] },
+      { nome: 'chavePix', rotulo: 'Chave PIX (para os repasses)', ajuda: 'Só administradores definem. Fica criptografada.' },
     ],
     item: (l) => ({ titulo: l.nome, sub: l.site, imagem: l.logoUrl || undefined, status: <Selo status={l.ativo ? 'ativo' : 'inativo'} /> }),
   },
