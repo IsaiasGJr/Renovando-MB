@@ -6,11 +6,11 @@ import { Cabecalho, Carregando, Erro, Modal } from '../componentes/ui';
 type Divisao = { rotulo: string; percentual: number }[];
 export type Campanha = {
   id: string; edicao: string; titulo: string; subtitulo: string; descricao: string; valorCupom: number;
-  divisao: Divisao; inicio: string | null; fim: string | null; ativa: boolean; imagemCupom?: string;
+  divisao: Divisao; inicio: string | null; fim: string | null; ativa: boolean; imagemCupom?: string; imagemPanfleto?: string;
 };
 
 const NOVA: Omit<Campanha, 'id' | 'ativa'> = {
-  edicao: '', titulo: '', subtitulo: '', descricao: '', valorCupom: 20, inicio: '', fim: '', imagemCupom: '',
+  edicao: '', titulo: '', subtitulo: '', descricao: '', valorCupom: 20, inicio: '', fim: '', imagemCupom: '', imagemPanfleto: '',
   divisao: [
     { rotulo: 'Igreja', percentual: 80 },
     { rotulo: 'Semeador', percentual: 7 },
@@ -26,8 +26,6 @@ export function useCampanhas() {
 export default function Campanhas() {
   const qc = useQueryClient();
   const lista = useCampanhas();
-  const [enviandoArte, setEnviandoArte] = useState(false);
-  const [erroArte, setErroArte] = useState('');
   const [form, setForm] = useState<(Omit<Campanha, 'id' | 'ativa'> & { id?: string }) | null>(null);
   const recarregar = () => {
     qc.invalidateQueries({ queryKey: ['campanhas'] });
@@ -117,36 +115,10 @@ export default function Campanhas() {
                 <textarea id="c-desc" className="input" style={{ minHeight: 70 }} value={form.descricao}
                   onChange={(e) => setForm({ ...form, descricao: e.target.value })} />
               </div>
-              <div className="campo largo">
-                <label htmlFor="c-arte">Arte do cupom</label>
-                <div className="linha" style={{ alignItems: 'flex-start' }}>
-                  {form.imagemCupom ? <img src={form.imagemCupom} alt="Arte do cupom" style={{ width: 90, borderRadius: 8, border: '1px solid var(--borda)' }} /> : null}
-                  <div className="pilha" style={{ gap: 6, flex: 1 }}>
-                    <span className="ajuda">O bilhete que o ofertante baixa em "Meus cupons", como no site: a arte em pé (ex.: 640 × 930) com a parte de baixo em branco, onde o sistema escreve o número, a igreja e a data.</span>
-                    <div className="linha">
-                      <label className="btn sec peq">
-                        {enviandoArte ? 'Enviando…' : form.imagemCupom ? 'Trocar arte' : 'Enviar arte'}
-                        <input id="c-arte" type="file" accept="image/*" hidden onChange={async (e) => {
-                          const f = e.target.files?.[0];
-                          if (!f) return;
-                          setErroArte('');
-                          setEnviandoArte(true);
-                          try {
-                            const url = await enviarImagem(f);
-                            setForm((v) => (v ? { ...v, imagemCupom: url } : v));
-                          } catch (err) {
-                            setErroArte((err as Error).message);
-                          } finally {
-                            setEnviandoArte(false);
-                          }
-                        }} />
-                      </label>
-                      {form.imagemCupom ? <button type="button" className="btn sec peq" onClick={() => setForm({ ...form, imagemCupom: '' })}>Remover</button> : null}
-                    </div>
-                    {erroArte ? <span className="erro-texto" style={{ color: 'var(--erro)' }}>{erroArte}</span> : null}
-                  </div>
-                </div>
-              </div>
+              <CampoArte id="c-arte" rotulo="Arte do cupom" valor={form.imagemCupom ?? ''} onChange={(u) => setForm((v) => (v ? { ...v, imagemCupom: u } : v))}
+                ajuda='O bilhete que o ofertante baixa em "Meus cupons", como no site: a arte em pé (640 × 930) com a parte de baixo em branco, onde o sistema escreve o número, a igreja e a data.' />
+              <CampoArte id="c-panfleto" rotulo="Panfleto" valor={form.imagemPanfleto ?? ''} onChange={(u) => setForm((v) => (v ? { ...v, imagemPanfleto: u } : v))}
+                ajuda="Arte deitada de 1200 × 470, como no site, com o quadro branco no canto direito: cada igreja baixa o PDF com o QR Code dela nesse quadro (1 ou 6 por folha)." />
               <div className="campo">
                 <label htmlFor="c-ini">Início</label>
                 <input id="c-ini" type="date" className="input" value={form.inicio ?? ''} onChange={(e) => setForm({ ...form, inicio: e.target.value })} />
@@ -183,6 +155,43 @@ export default function Campanhas() {
           </div>
         </Modal>
       ) : null}
+    </div>
+  );
+}
+
+/** Envio de uma arte da campanha (cupom ou panfleto) com prévia. */
+function CampoArte({ id, rotulo, valor, onChange, ajuda }: { id: string; rotulo: string; valor: string; onChange: (url: string) => void; ajuda: string }) {
+  const [enviando, setEnviando] = useState(false);
+  const [erro, setErro] = useState('');
+  return (
+    <div className="campo largo">
+      <label htmlFor={id}>{rotulo}</label>
+      <div className="linha" style={{ alignItems: 'flex-start' }}>
+        {valor ? <img src={valor} alt={rotulo} style={{ width: 120, maxHeight: 140, objectFit: 'contain', borderRadius: 8, border: '1px solid var(--borda)' }} /> : null}
+        <div className="pilha" style={{ gap: 6, flex: 1 }}>
+          <span className="ajuda">{ajuda}</span>
+          <div className="linha">
+            <label className="btn sec peq">
+              {enviando ? 'Enviando…' : valor ? 'Trocar' : 'Enviar'}
+              <input id={id} type="file" accept="image/*" hidden onChange={async (e) => {
+                const f = e.target.files?.[0];
+                if (!f) return;
+                setErro('');
+                setEnviando(true);
+                try {
+                  onChange(await enviarImagem(f));
+                } catch (err) {
+                  setErro((err as Error).message);
+                } finally {
+                  setEnviando(false);
+                }
+              }} />
+            </label>
+            {valor ? <button type="button" className="btn sec peq" onClick={() => onChange('')}>Remover</button> : null}
+          </div>
+          {erro ? <span style={{ color: 'var(--erro)' }}>{erro}</span> : null}
+        </div>
+      </div>
     </div>
   );
 }

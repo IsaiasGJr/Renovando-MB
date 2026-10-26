@@ -174,6 +174,18 @@ tudo no fim) e se recusam a rodar se a API não estiver em modo de desenvolvimen
 Todos só leem as páginas públicas do site e podem rodar de novo sem duplicar. Os Termos de Uso não são importados
 (no site estão incompletos).
 
+## Panfleto de cada igreja
+
+A campanha tem a arte do panfleto (1200 × 470, a mesma do site, com o quadro branco no canto direito). Cada igreja aprovada
+baixa um **PDF A4 com o QR Code da página dela** nesse quadro, em dois formatos:
+
+- **1 por folha**: panfleto grande (27,7 × 10,9 cm), para cartaz e mural;
+- **6 por folha**: 2 colunas × 3 linhas (13,7 × 5,4 cm cada), com linha tracejada para recortar e distribuir.
+
+Quem baixa: o **pastor** (e o semeador que indicou a igreja) em *Meu painel* no app, e a equipe em **Igrejas** no painel web
+e no app admin. A arte é trocada em **Campanhas → Panfleto**. O QR Code abre a página da igreja (`URL_PUBLICA` na API e
+`URL_PUBLICA_API` no admin).
+
 ## Pronto para produção
 
 | O quê | Como funciona |

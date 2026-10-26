@@ -97,21 +97,21 @@ export const httpApi: Api = {
 };
 
 /**
- * "Baixar cupom", como no site: busca o bilhete (imagem) do cupom e abre o menu de compartilhar
- * do celular (salvar na galeria, mandar no WhatsApp...). Na web, baixa o arquivo.
+ * Baixa um arquivo da conta (bilhete do cupom, panfleto da igreja...) e abre o menu de compartilhar
+ * do celular (salvar, imprimir, mandar no WhatsApp...). Na web, baixa o arquivo.
  */
-export async function baixarCupom(cupomId: string, numero: string) {
+export async function baixarArquivo(caminho: string, nome: string, tipo: string) {
   const token = useAuth.getState().token;
   let r: Response;
   try {
-    r = await fetch(`${BASE_URL}/api/me/cupons/${encodeURIComponent(cupomId)}/imagem`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    });
+    r = await fetch(`${BASE_URL}/api${caminho}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
   } catch {
     throw new Error('Sem conexão com o servidor. Verifique sua internet e tente de novo.');
   }
-  if (!r.ok) throw new Error('Erro ao baixar o cupom. Por favor, tente novamente.');
-  const nome = `cupom-${numero}.jpg`;
+  if (!r.ok) {
+    const erro = (await r.json().catch(() => ({}))) as { erro?: string };
+    throw new Error(erro.erro ?? 'Não foi possível baixar o arquivo. Tente novamente.');
+  }
   if (Platform.OS === 'web') {
     const url = URL.createObjectURL(await r.blob());
     Object.assign(document.createElement('a'), { href: url, download: nome }).click();
@@ -123,5 +123,13 @@ export async function baixarCupom(cupomId: string, numero: string) {
   const destino = new File(Paths.cache, nome);
   destino.create({ overwrite: true });
   destino.write(new Uint8Array(await r.arrayBuffer()));
-  await Sharing.shareAsync(destino.uri, { mimeType: 'image/jpeg', dialogTitle: `Cupom ${numero}` });
+  await Sharing.shareAsync(destino.uri, { mimeType: tipo, dialogTitle: nome });
 }
+
+/** "Baixar cupom", como no site: o bilhete da campanha com o número e os dados do cupom. */
+export const baixarCupom = (cupomId: string, numero: string) =>
+  baixarArquivo(`/me/cupons/${encodeURIComponent(cupomId)}/imagem`, `cupom-${numero}.jpg`, 'image/jpeg');
+
+/** Panfleto da igreja com o QR Code dela (PDF A4, 1 ou 6 por folha). */
+export const baixarPanfleto = (igrejaId: string, slug: string, porPagina: 1 | 6) =>
+  baixarArquivo(`/me/igrejas/${encodeURIComponent(igrejaId)}/panfleto?porPagina=${porPagina}`, `panfleto-${slug}-${porPagina}-por-pagina.pdf`, 'application/pdf');

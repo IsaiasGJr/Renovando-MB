@@ -18,6 +18,7 @@ import { registrar } from '../../../compartilhado/src/auditoria.ts';
 import { provedorPix } from '../../../compartilhado/src/pagamentos.ts';
 import { TOKEN_VALIDO } from '../../../compartilhado/src/avisos.ts';
 import { dataEmissao, gerarImagemCupom } from '../../../compartilhado/src/cupom.ts';
+import { pdfPanfletoDaIgreja } from '../../../compartilhado/src/panfleto.ts';
 import { cifrar, indice } from '../../../compartilhado/src/cripto.ts';
 import { cachePublico, limitar, limitePorIp } from '../../../compartilhado/src/seguranca.ts';
 import { env } from '../env.ts';
@@ -432,6 +433,26 @@ publico.get('/me/painel', exigirUsuario, (req, res) => {
     semeador = { ...s, igrejas: lista, volume, comissao: Math.round(volume * percentuais.semeador) / 100, semeadoresIndicados: indicados };
   }
   res.json({ igrejas, semeador, percentuais });
+});
+
+// ---------- Panfleto da igreja (para imprimir) ----------
+
+// O pastor da igreja (ou o semeador que a indicou) baixa o PDF com o QR Code da página da igreja.
+publico.get('/me/igrejas/:id/panfleto', limitePorIp('panfleto', 30, 15 * MIN), exigirUsuario, async (req, res) => {
+  const porPagina = query(req, 'porPagina') === '6' ? 6 : 1;
+  const id = param(req, 'id');
+  const u = um<{ whatsappIndice: string }>('SELECT whatsapp_indice FROM usuarios WHERE id = ?', req.usuarioId!);
+  const permitido = u && um(
+    `SELECT 1 FROM igrejas i LEFT JOIN semeadores s ON s.id = i.semeador_id
+      WHERE i.id = ? AND (i.pastor_whatsapp_indice = ? OR s.whatsapp_indice = ?)`,
+    id, u.whatsappIndice, u.whatsappIndice,
+  );
+  if (!permitido) throw naoEncontrado('Igreja');
+  const base = env.urlPublica || `${req.protocol}://${req.get('host')}`;
+  const { pdf, nomeArquivo } = await pdfPanfletoDaIgreja(id, porPagina, base);
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="${nomeArquivo}"`);
+  res.send(pdf);
 });
 
 // ---------- Avisos no celular ----------

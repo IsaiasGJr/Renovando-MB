@@ -11,6 +11,8 @@ export const env = {
   dev: process.env.NODE_ENV === 'development',
   /** Atrás de um proxy (Nginx, Cloudflare, Render...), defina TRUST_PROXY=1 para o limite por IP funcionar. */
   trustProxy: process.env.TRUST_PROXY === '1',
+  /** Endereço público da API (ex.: https://api.renovandoavinhadosenhor.com): vai no QR Code dos panfletos. */
+  urlPublica: process.env.URL_PUBLICA ?? '',
 };
 
 if (!env.dev && (env.jwtSegredo === 'troque-este-segredo-em-producao' || env.jwtSegredo.length < 32)) {

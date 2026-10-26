@@ -3,7 +3,7 @@ import type { Api } from './contrato';
 import { httpApi } from './http';
 
 export const api: Api = httpApi;
-export { baixarCupom, BASE_URL, urlImagem } from './http';
+export { baixarCupom, baixarPanfleto, BASE_URL, urlImagem } from './http';
 export type { Api };
 
 /** Verdadeiro quando a API roda em desenvolvimento (código 123456 e pagamento simulado). */

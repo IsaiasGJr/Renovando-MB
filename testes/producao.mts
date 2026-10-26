@@ -125,5 +125,37 @@ conferir('Auditoria registra a ativação', !!aud);
 await req(ADM, `/admins/${editor.id}`, { method: 'DELETE', token: tokAdm });
 db.prepare('DELETE FROM limites').run();
 
+// ---------- 6. Panfleto da igreja (PDF A4, 1 ou 6 por folha, com QR Code) ----------
+const { igrejaTemporaria, apagarIgreja, apagarContas } = await import('./_apoio.mjs');
+db.prepare('DELETE FROM limites').run();
+const tokAdm2 = (await req(ADM, '/login', { method: 'POST', json: { email: envAdmin.ADMIN_EMAIL, senha: envAdmin.ADMIN_SENHA } })).dados.token;
+const temp = await igrejaTemporaria(db, envAdmin);
+const pdf = async (url: string, token?: string) => {
+  const r = await fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+  const b = Buffer.from(await r.arrayBuffer());
+  const texto = b.toString('latin1');
+  return { status: r.status, tipo: r.headers.get('content-type') ?? '', b, paginas: (texto.match(/\/Type \/Page\b/g) ?? []).length, imagens: (texto.match(/\/Subtype \/Image/g) ?? []).length };
+};
+const um1 = await pdf(`${ADM}/igrejas/${temp.id}/panfleto?porPagina=1`, tokAdm2);
+const seis = await pdf(`${ADM}/igrejas/${temp.id}/panfleto?porPagina=6`, tokAdm2);
+conferir('Panfleto: admin baixa o PDF 1 por folha', um1.status === 200 && um1.tipo.includes('application/pdf') && um1.b.subarray(0, 5).toString() === '%PDF-' && um1.paginas === 1, `${um1.status} ${Math.round(um1.b.length / 1024)} KB`);
+conferir('Panfleto: 6 por folha numa página só e leve (imagem guardada uma vez)', seis.status === 200 && seis.paginas === 1 && seis.imagens === 1 && seis.b.length < 2_000_000, `${Math.round(seis.b.length / 1024)} KB`);
+conferir('Panfleto: sem login do admin é negado', (await pdf(`${ADM}/igrejas/${temp.id}/panfleto`)).status === 401);
+// Pastor (dono do WhatsApp cadastrado na igreja) baixa pelo app
+const entrarApp = async (fone: string) => {
+  await req(API, '/auth/codigo', { method: 'POST', json: { whatsapp: fone } });
+  return (await req(API, '/auth/verificar', { method: 'POST', json: { whatsapp: fone, codigo: '123456', nome: 'Panfleto' } })).dados;
+};
+const pastor = await entrarApp(temp.pastorWhatsapp);
+const doPastor = await pdf(`${API}/me/igrejas/${temp.id}/panfleto?porPagina=6`, pastor.token);
+conferir('Panfleto: o pastor baixa pelo app', doPastor.status === 200 && doPastor.b.subarray(0, 5).toString() === '%PDF-');
+const estranho = await entrarApp(`6379${String(Date.now()).slice(-7)}`);
+conferir('Panfleto: outra pessoa não baixa o panfleto da igreja', (await pdf(`${API}/me/igrejas/${temp.id}/panfleto`, estranho.token)).status === 404);
+await req(ADM, `/igrejas/${temp.id}`, { method: 'PUT', token: tokAdm2, json: { status: 'pendente' } });
+conferir('Panfleto: igreja ainda não aprovada não tem panfleto', (await pdf(`${ADM}/igrejas/${temp.id}/panfleto`, tokAdm2)).status === 400);
+apagarIgreja(db, temp.id);
+apagarContas(db, pastor.usuario?.id, estranho.usuario?.id);
+db.prepare('DELETE FROM limites').run();
+
 console.log(`\n${ok} ok, ${falhas} falha(s)`);
 process.exit(falhas ? 1 : 0);

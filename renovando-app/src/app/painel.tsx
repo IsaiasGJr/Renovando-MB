@@ -1,9 +1,10 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
-import { RefreshControl, ScrollView, Share, Text, View } from 'react-native';
+import { useState } from 'react';
+import { Alert, Platform, RefreshControl, ScrollView, Share, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { api, BASE_URL } from '@/api';
+import { api, baixarPanfleto, BASE_URL } from '@/api';
 import { Destaque } from '@/components/Conteudo';
 import { LogoIgreja } from '@/components/Igrejas';
 import { Aviso, Botao, Carregando, Cartao, s as ui } from '@/components/ui';
@@ -82,6 +83,7 @@ export default function Painel() {
                 <Botao titulo="Divulgar o link da igreja" icone="share-social-outline"
                   onPress={() => Share.share({ message: `Oferte para a ${i.nomeFantasia} na campanha Renovando e concorra a prêmios: ${BASE_URL}/igreja/${i.slug}` })} />
                 <Botao titulo="Ver a página da igreja" variante="contorno" onPress={() => router.push({ pathname: '/igreja/[slug]', params: { slug: i.slug } })} />
+                <BotoesPanfleto igrejaId={i.id} slug={i.slug} />
               </>
             ) : (
               <Aviso>{i.status === 'pendente' ? 'Cadastro em análise. Você recebe o retorno pelo WhatsApp.' : 'Esta igreja não está ativa na campanha. Fale com a equipe.'}</Aviso>
@@ -126,5 +128,36 @@ export default function Painel() {
         ) : null}
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+/**
+ * Panfleto da igreja para imprimir (PDF A4) com o QR Code da página dela:
+ * 1 por folha (cartaz) ou 6 por folha (para recortar e distribuir).
+ */
+function BotoesPanfleto({ igrejaId, slug }: { igrejaId: string; slug: string }) {
+  const [gerando, setGerando] = useState<1 | 6 | null>(null);
+  async function baixar(porPagina: 1 | 6) {
+    setGerando(porPagina);
+    try {
+      await baixarPanfleto(igrejaId, slug, porPagina);
+    } catch (e) {
+      const msg = (e as Error).message;
+      if (Platform.OS === 'web') window.alert(msg);
+      else Alert.alert('Panfleto', msg);
+    } finally {
+      setGerando(null);
+    }
+  }
+  return (
+    <View style={{ gap: espaco.sm }}>
+      <Text style={{ fontWeight: '700', color: cores.texto }}>Panfleto para imprimir (com o QR Code da igreja)</Text>
+      <View style={{ flexDirection: 'row', gap: espaco.sm }}>
+        <Botao titulo="1 por folha" icone="document-outline" variante="contorno" style={{ flex: 1 }}
+          carregando={gerando === 1} desabilitado={gerando !== null} onPress={() => baixar(1)} />
+        <Botao titulo="6 por folha" icone="copy-outline" variante="contorno" style={{ flex: 1 }}
+          carregando={gerando === 6} desabilitado={gerando !== null} onPress={() => baixar(6)} />
+      </View>
+    </View>
   );
 }

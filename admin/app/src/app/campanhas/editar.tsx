@@ -15,11 +15,11 @@ import { brParaIso, isoParaBr, mascaraData } from '@/utils/format';
 
 type Form = {
   edicao: string; titulo: string; subtitulo: string; descricao: string; valorCupom: string;
-  inicio: string; fim: string; imagemCupom: string; divisao: { rotulo: string; percentual: string }[];
+  inicio: string; fim: string; imagemCupom: string; imagemPanfleto: string; divisao: { rotulo: string; percentual: string }[];
 };
 
 const NOVA: Form = {
-  edicao: '', titulo: '', subtitulo: '', descricao: '', valorCupom: '20', inicio: '', fim: '', imagemCupom: '',
+  edicao: '', titulo: '', subtitulo: '', descricao: '', valorCupom: '20', inicio: '', fim: '', imagemCupom: '', imagemPanfleto: '',
   divisao: [
     { rotulo: 'Igreja', percentual: '80' }, { rotulo: 'Semeador', percentual: '7' },
     { rotulo: 'Parceiro da campanha', percentual: '5' }, { rotulo: 'Plataforma', percentual: '8' },
@@ -28,7 +28,7 @@ const NOVA: Form = {
 
 const paraForm = (c: Campanha): Form => ({
   edicao: c.edicao, titulo: c.titulo, subtitulo: c.subtitulo, descricao: c.descricao, valorCupom: String(c.valorCupom),
-  inicio: isoParaBr(c.inicio, false), fim: isoParaBr(c.fim, false), imagemCupom: c.imagemCupom ?? '',
+  inicio: isoParaBr(c.inicio, false), fim: isoParaBr(c.fim, false), imagemCupom: c.imagemCupom ?? '', imagemPanfleto: c.imagemPanfleto ?? '',
   divisao: c.divisao.map((d) => ({ rotulo: d.rotulo, percentual: String(d.percentual) })),
 });
 
@@ -51,7 +51,7 @@ function FormCampanha({ inicial, id }: { inicial: Form; id?: string }) {
       if ((f.inicio && !inicio) || (f.fim && !fim)) throw new Error('Use datas no formato dd/mm/aaaa.');
       const json = {
         edicao: f.edicao.trim(), titulo: f.titulo.trim(), subtitulo: f.subtitulo.trim(), descricao: f.descricao.trim(),
-        valorCupom: num(f.valorCupom), inicio: inicio || null, fim: fim || null, imagemCupom: f.imagemCupom,
+        valorCupom: num(f.valorCupom), inicio: inicio || null, fim: fim || null, imagemCupom: f.imagemCupom, imagemPanfleto: f.imagemPanfleto,
         divisao: f.divisao.map((d) => ({ rotulo: d.rotulo.trim(), percentual: num(d.percentual) })),
       };
       return id ? api(`/campanhas/${id}`, { method: 'PUT', json }) : api('/campanhas', { method: 'POST', json });
@@ -89,6 +89,11 @@ function FormCampanha({ inicial, id }: { inicial: Form; id?: string }) {
         <CampoImagem rotulo="Arte do cupom" valor={f.imagemCupom} onChange={(u) => set({ imagemCupom: u })} />
         <Text style={{ color: cores.textoSuave, fontSize: 13, marginTop: -espaco.sm }}>
           O bilhete que o ofertante baixa em “Meus cupons”, como no site: arte em pé com a parte de baixo em branco, onde o sistema escreve o número, a igreja e a data.
+        </Text>
+
+        <CampoImagem rotulo="Panfleto" valor={f.imagemPanfleto} onChange={(u) => set({ imagemPanfleto: u })} />
+        <Text style={{ color: cores.textoSuave, fontSize: 13, marginTop: -espaco.sm }}>
+          Arte deitada de 1200 × 470, como no site, com o quadro branco no canto direito: cada igreja baixa o PDF com o QR Code dela nesse quadro.
         </Text>
 
         <Cartao>

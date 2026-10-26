@@ -20,6 +20,7 @@ export type Campanha = {
   id: string; edicao: string; titulo: string; subtitulo: string; descricao: string; valorCupom: number;
   divisao: { rotulo: string; percentual: number }[]; inicio: string | null; fim: string | null; ativa: boolean;
   imagemCupom?: string;
+  imagemPanfleto?: string;
 };
 
 export const ROTULO_STATUS_OFERTA: Record<string, string> = {

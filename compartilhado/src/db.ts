@@ -237,6 +237,8 @@ garantirColuna('artistas', 'galeria', "TEXT NOT NULL DEFAULT '[]'");
 db.exec('CREATE UNIQUE INDEX IF NOT EXISTS artistas_slug ON artistas(slug)');
 // Arte do cupom da campanha (o mesmo bilhete do site): o número e os dados são escritos por cima.
 garantirColuna('campanhas', 'imagem_cupom', "TEXT NOT NULL DEFAULT ''");
+// Arte do panfleto (1200 × 470, como no site): cada igreja baixa com o QR Code dela no quadro branco.
+garantirColuna('campanhas', 'imagem_panfleto', "TEXT NOT NULL DEFAULT ''");
 // Cobrança no gateway de pagamento: id lá dentro e imagem do QR Code (quando o gateway manda).
 garantirColuna('ofertas', 'id_gateway', 'TEXT');
 garantirColuna('ofertas', 'qr_code', "TEXT NOT NULL DEFAULT ''");

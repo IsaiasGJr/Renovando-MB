@@ -102,6 +102,23 @@ export async function baixarAnexo(arquivo: string, nome: string) {
   await Sharing.shareAsync(destino.uri, { dialogTitle: nome });
 }
 
+/** Baixa um arquivo do admin (ex.: PDF do panfleto) e abre o menu de compartilhar (WhatsApp, imprimir, Drive...). */
+export async function baixarArquivo(caminho: string, nome: string, tipo: string) {
+  const r = await fetch(`${BASE_URL}/api${caminho}`, { headers: cabecalhos() });
+  if (!r.ok) throw new Error((await r.json().catch(() => ({})) as { erro?: string }).erro ?? 'Não foi possível gerar o arquivo.');
+  const blob = await r.blob();
+  if (Platform.OS === 'web') {
+    const url = URL.createObjectURL(blob);
+    Object.assign(document.createElement('a'), { href: url, download: nome }).click();
+    URL.revokeObjectURL(url);
+    return;
+  }
+  const destino = new File(Paths.cache, nome.replace(/[^\w.-]/g, '_'));
+  destino.create({ overwrite: true });
+  destino.write(new Uint8Array(await blob.arrayBuffer()));
+  await Sharing.shareAsync(destino.uri, { mimeType: tipo, dialogTitle: nome });
+}
+
 /** Baixa o CSV do relatório e abre o menu de compartilhar (WhatsApp, e-mail, Drive...). */
 export async function compartilharCsv(caminho: string, nome: string) {
   const r = await fetch(`${BASE_URL}/api${caminho}`, { headers: cabecalhos() });

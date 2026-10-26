@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { FlatList, RefreshControl, Text, View } from 'react-native';
-import { api, urlImagem } from '@/api';
+import { api, baixarArquivo, urlImagem } from '@/api';
 import { BotaoNovo, Chips, Info, Vazio } from '@/components/admin';
 import { Aviso, Botao, Carregando, Cartao, s as ui } from '@/components/ui';
 import { RECURSOS } from '@/recursos';
@@ -22,6 +22,12 @@ export default function Lista() {
   const [status, setStatus] = useState(statusInicial ?? '');
 
   // Prêmios: escolher a campanha (padrão: a ativa).
+  // PDF do panfleto da igreja (1 ou 6 por folha A4).
+  const panfleto = useMutation({
+    mutationFn: ({ id, slug, porPagina }: { id: string; slug: string; porPagina: 1 | 6 }) =>
+      baixarArquivo(`/igrejas/${id}/panfleto?porPagina=${porPagina}`, `panfleto-${slug}-${porPagina}-por-pagina.pdf`, 'application/pdf'),
+  });
+
   const ehPremios = recurso === 'premios';
   const campanhas = useCampanhas();
   const [campanhaEscolhida, setCampanhaEscolhida] = useState('');
@@ -74,6 +80,7 @@ export default function Lista() {
             {lista.isLoading ? <Carregando /> : null}
             {lista.error ? <Aviso>{(lista.error as Error).message}</Aviso> : null}
             {mudarStatus.error ? <Aviso>{(mudarStatus.error as Error).message}</Aviso> : null}
+            {panfleto.error ? <Aviso>{(panfleto.error as Error).message}</Aviso> : null}
           </View>
         }
         ListEmptyComponent={lista.data ? <Vazio texto="Nenhum registro." /> : null}
@@ -112,6 +119,17 @@ export default function Lista() {
                     <Botao titulo="Editar" variante="secundario" icone="create-outline" style={{ flex: 1, minHeight: 42 }}
                       onPress={() => editar(l.id)} />
                 </View>
+                {/* Panfleto da igreja com o QR Code dela, para imprimir (A4). */}
+                {recurso === 'igrejas' && l.status === 'ativa' ? (
+                  <View style={{ flexDirection: 'row', gap: espaco.sm }}>
+                    {([1, 6] as const).map((n) => (
+                      <Botao key={n} titulo={n === 1 ? 'Panfleto 1/folha' : 'Panfleto 6/folha'} icone="print-outline" variante="contorno"
+                        style={{ flex: 1, minHeight: 42 }}
+                        carregando={panfleto.isPending && panfleto.variables?.id === l.id && panfleto.variables.porPagina === n}
+                        onPress={() => panfleto.mutate({ id: l.id, slug: String(l.slug), porPagina: n })} />
+                    ))}
+                  </View>
+                ) : null}
             </Cartao>
           );
         }}

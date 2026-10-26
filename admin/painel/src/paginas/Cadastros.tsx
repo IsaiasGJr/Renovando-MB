@@ -1,7 +1,7 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { api, data, dataHora, moeda, numero } from '../api';
+import { api, baixar, data, dataHora, moeda, numero } from '../api';
 import { CrudPagina } from '../componentes/CrudPagina';
 import { Cabecalho, Carregando, Erro, Selo } from '../componentes/ui';
 
@@ -85,7 +85,7 @@ export function Igrejas() {
       acoes={(i, recarregar) => i.status === 'pendente' ? (
         <AcoesStatus recurso="igrejas" id={i.id} atual={i.status} recarregar={recarregar}
           opcoes={[{ status: 'ativa', rotulo: 'Aprovar' }, { status: 'rejeitada', rotulo: 'Rejeitar', perigo: true }]} />
-      ) : null}
+      ) : i.status === 'ativa' ? <BaixarPanfleto igreja={i} /> : null}
     />
   );
 }
@@ -361,5 +361,33 @@ export function UsuariosAdmin() {
         { titulo: '2 etapas', render: (u) => (u.totpAtivo ? 'Ativa' : '—') },
       ]}
     />
+  );
+}
+
+/**
+ * Panfleto da igreja para imprimir (PDF A4): a arte da campanha com o QR Code da página da igreja.
+ * "1 por folha" para cartaz; "6 por folha" (2 × 3, com linhas de corte) para distribuir.
+ */
+function BaixarPanfleto({ igreja }: { igreja: { id: string; slug: string } }) {
+  const [gerando, setGerando] = useState<1 | 6 | null>(null);
+  const baixarPdf = async (porPagina: 1 | 6) => {
+    setGerando(porPagina);
+    try {
+      await baixar(`/igrejas/${igreja.id}/panfleto?porPagina=${porPagina}`, `panfleto-${igreja.slug}-${porPagina}-por-pagina.pdf`);
+    } catch (e) {
+      alert((e as Error).message);
+    } finally {
+      setGerando(null);
+    }
+  };
+  return (
+    <>
+      <button className="btn sec peq" disabled={gerando !== null} title="Panfleto grande, 1 por folha A4" onClick={() => baixarPdf(1)}>
+        {gerando === 1 ? 'Gerando…' : 'Panfleto 1/folha'}
+      </button>
+      <button className="btn sec peq" disabled={gerando !== null} title="6 panfletos por folha A4, com linhas de corte" onClick={() => baixarPdf(6)}>
+        {gerando === 6 ? 'Gerando…' : 'Panfleto 6/folha'}
+      </button>
+    </>
   );
 }

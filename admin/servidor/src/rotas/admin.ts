@@ -12,6 +12,7 @@ import { diferenca, registrar, type Acao } from '../../../../compartilhado/src/a
 import { cifrar, cifrarCampos, decifrar, decifrarCampos, indice } from '../../../../compartilhado/src/cripto.ts';
 import { celulaCsv, ehImagemValida, limitar, TIPOS_IMAGEM, zerarLimite } from '../../../../compartilhado/src/seguranca.ts';
 import { enviarAviso } from '../../../../compartilhado/src/avisos.ts';
+import { pdfPanfletoDaIgreja } from '../../../../compartilhado/src/panfleto.ts';
 import QRCode from 'qrcode';
 import { assinar, exigirAdmin, somenteAdmin } from '../auth.ts';
 import { env } from '../env.ts';
@@ -297,6 +298,7 @@ const schemaCampanha = z.object({
     .refine((d) => Math.abs(d.reduce((s, x) => s + x.percentual, 0) - 100) < 0.01, 'a divisão precisa somar 100%'),
   inicio: z.string().nullable().optional(),
   // Arte do cupom (como no site): só imagens enviadas pelo próprio admin.
+  imagemPanfleto: z.string().regex(/^(\/uploads\/[\w-]+\.(png|jpg|webp))?$/, 'envie o panfleto pelo botão de imagem').optional().default(''),
   imagemCupom: z.string().regex(/^(\/uploads\/[\w-]+\.(png|jpg|webp))?$/, 'envie a arte pelo botão de imagem').optional().default(''),
   fim: z.string().nullable().optional(),
 });
@@ -682,6 +684,16 @@ crud(
   },
   somenteAdmin,
 );
+
+// ---------- Panfleto da igreja ----------
+
+admin.get('/igrejas/:id/panfleto', async (req, res) => {
+  const porPagina = query(req, 'porPagina') === '6' ? 6 : 1;
+  const { pdf, nomeArquivo } = await pdfPanfletoDaIgreja(param(req, 'id'), porPagina, env.urlPublicaApi);
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="${nomeArquivo}"`);
+  res.send(pdf);
+});
 
 // ---------- Avisos no celular ----------
 

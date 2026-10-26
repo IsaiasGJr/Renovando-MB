@@ -15,6 +15,8 @@ export const env = {
   trustProxy: process.env.TRUST_PROXY === '1',
   /** Build do painel (admin/painel/dist), servido por este mesmo servidor em produção. */
   /** ADMIN_2FA_OBRIGATORIO=1: quem não ativou a verificação em duas etapas só consegue ativá-la (mais nada). */
+  /** Endereço público da API do app: o QR Code do panfleto abre a página da igreja lá. */
+  urlPublicaApi: process.env.URL_PUBLICA_API ?? 'http://localhost:3333',
   doisFatoresObrigatorio: process.env.ADMIN_2FA_OBRIGATORIO === '1',
   pastaPainel: process.env.PAINEL_DIST ?? fileURLToPath(new URL('../../painel/dist/', import.meta.url)),
 };
