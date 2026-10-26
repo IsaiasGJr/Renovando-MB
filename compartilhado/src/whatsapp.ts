@@ -1,10 +1,10 @@
-import { ErroHttp } from '../../compartilhado/src/util.ts';
+import { ErroHttp } from './util.ts';
 
 /**
  * Envio do código de login pela WhatsApp Cloud API (Meta).
  *
  * Precisa de um modelo de mensagem da categoria AUTENTICAÇÃO aprovado no WhatsApp Manager
- * (ex.: "codigo_login", em português), com o botão "Copiar código". Configuração no .env da API:
+ * (ex.: "codigo_login", em português), com o botão "Copiar código". Configuração no .env da API e do admin:
  *   WHATSAPP_TOKEN        token de acesso permanente (usuário do sistema no Meta Business)
  *   WHATSAPP_NUMERO_ID    "Phone number ID" do número que envia
  *   WHATSAPP_MODELO       nome do modelo aprovado (padrão: codigo_login)

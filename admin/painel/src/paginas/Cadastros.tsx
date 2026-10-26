@@ -342,7 +342,7 @@ export function Ofertantes() {
 
 // ---------- Usuários do painel ----------
 
-type UsuarioAdmin = { id: string; nome: string; email: string; papel: string; ativo: boolean; totpAtivo: boolean; criadoEm: string };
+type UsuarioAdmin = { id: string; nome: string; email: string; papel: string; ativo: boolean; totpAtivo: boolean; whatsapp: string; criadoEm: string };
 
 export function UsuariosAdmin() {
   return (
@@ -361,6 +361,7 @@ export function UsuariosAdmin() {
           opcoes: [{ valor: 'editor', rotulo: 'Editor' }, { valor: 'admin', rotulo: 'Administrador' }],
         },
         { nome: 'ativo', rotulo: 'Ativo', tipo: 'checkbox', padrao: true },
+        { nome: 'whatsapp', rotulo: 'WhatsApp de acesso', ajuda: 'Com este número a pessoa entra no painel pelo código enviado no WhatsApp (como no site). Opcional: e-mail e senha continuam valendo.' },
         { nome: 'totpAtivo', rotulo: 'Verificação em duas etapas', tipo: 'checkbox', padrao: false, ajuda: 'Só a própria pessoa ativa (em Minha conta). Desmarque para desligar, se ela perdeu o celular.' },
       ]}
       colunas={[
@@ -368,6 +369,7 @@ export function UsuariosAdmin() {
         { titulo: 'E-mail', render: (u) => u.email },
         { titulo: 'Papel', render: (u) => (u.papel === 'admin' ? 'Administrador' : 'Editor') },
         { titulo: 'Status', render: (u) => <Selo status={u.ativo ? 'ativo' : 'inativo'} /> },
+        { titulo: 'WhatsApp de acesso', render: (u) => u.whatsapp || 'Sem WhatsApp' },
         { titulo: '2 etapas', render: (u) => (u.totpAtivo ? 'Ativa' : '—') },
       ]}
     />

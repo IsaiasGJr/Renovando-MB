@@ -254,3 +254,15 @@ tbody tr:hover td { background: #FBF8FA; }
 /* Linhas que abrem detalhe */
 tr.clicavel { cursor: pointer; }
 tr.clicavel:hover td { background: var(--primaria-clara); }
+
+/* Entrada: WhatsApp ou e-mail e senha */
+.abas-login { display: flex; gap: 4px; background: var(--fundo, #F7F3F5); padding: 4px; border-radius: 12px; }
+.abas-login button { flex: 1; border: 0; background: none; padding: 9px; border-radius: 9px; font-weight: 650; cursor: pointer; color: var(--texto-2); }
+.abas-login button.ativa { background: #fff; color: var(--primaria); box-shadow: 0 1px 4px rgb(0 0 0 / 8%); }
+.botao-cheio { justify-content: center; min-height: 42px; }
+.opcao-perfil { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; width: 100%;
+  border: 1px solid var(--borda); background: #fff; border-radius: 12px; padding: 12px 14px; cursor: pointer; }
+.opcao-perfil:hover { border-color: var(--primaria); background: var(--primaria-clara); }
+.opcao-perfil span { color: var(--texto-2); font-size: 13px; }
+
+.abas { display: flex; gap: 6px; flex-wrap: wrap; }

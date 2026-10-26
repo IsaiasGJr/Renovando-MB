@@ -158,7 +158,7 @@ Com `npm run api` e `npm run admin` ligados (modo de desenvolvimento):
 npm test
 ```
 
-Roda 183 verificações: segurança, criptografia, exclusão de conta, envio de imagens, painéis, verificação em duas etapas,
+Roda 209 verificações: segurança, criptografia, exclusão de conta, envio de imagens, painéis, verificação em duas etapas,
 WhatsApp, avisos no celular e mais. Os testes **nunca mexem em igrejas reais** (cada um cria uma igreja temporária e apaga
 tudo no fim) e se recusam a rodar se a API não estiver em modo de desenvolvimento.
 
@@ -186,6 +186,24 @@ Quem baixa: o **pastor** (e o semeador que indicou a igreja) em *Meu painel* no 
 e no app admin. A arte é trocada em **Campanhas → Panfleto**. O QR Code abre a página da igreja (`URL_PUBLICA` na API e
 `URL_PUBLICA_API` no admin).
 
+## Entrada no painel pelo WhatsApp (como no site)
+
+O painel administrativo (`admin.`) tem a mesma entrada do site: **WhatsApp → código → escolha do perfil**.
+
+| Perfil | O que vê no painel |
+|---|---|
+| Equipe (Administrador / Editor) | o painel completo. O número fica em **Usuários do painel → WhatsApp de acesso**. Quem tem verificação em duas etapas digita também o código do aplicativo. E-mail e senha continuam valendo |
+| Pastor | a igreja (saldo, arrecadação, membros contribuintes), **Minha igreja** (logo, mensagem e endereço; nunca PIX) e os panfletos |
+| Semeador N1 | igrejas, rede de N2, saldo e movimentações; **cadastra igrejas** e **semeadores N2** |
+| Semeador N2 | igrejas sob sua responsabilidade, saldo e movimentações; cadastra igrejas |
+| Parceiro | portal com saldo, campanhas e movimentações (sem dados de ofertantes) |
+
+- A mesma pessoa pode ter vários perfis (ex.: pastor e semeador) e escolhe com qual entrar.
+- Cadastro em análise ou recusado aparece na própria tela de entrada.
+- Token de perfil tem "audiência" própria: **nunca abre as rotas da equipe**, e é conferido a cada acesso (semeador desativado perde o acesso na hora).
+- O código só é enviado para números que têm algum acesso; a resposta é sempre a mesma (não revela quem tem acesso). Em desenvolvimento o código é **123456**.
+- O app admin (celular) também entra pelo WhatsApp, só para a equipe.
+
 ## Rede, repasses e financeiro
 
 > O sistema **não transfere dinheiro** e não acessa banco nenhum. Ele calcula e registra quanto cada um tem a receber;
@@ -194,6 +212,7 @@ e no app admin. A arte é trocada em **Campanhas → Panfleto**. O QR Code abre 
 - **Semeadores N1 e N2:** quem se cadastra sem código é N1; quem usa o convite de um N1 (`/semeador/<codigo>`, no *Meu painel*) entra como N2 da rede dele. N2 não convida (rede de 2 níveis). Admin vê nível, rede e corrige a ligação.
 - **Duas regras de divisão por campanha:** "sem N2" e "com N2" (a parte de semeador se divide entre N2 e N1). Cada parte tem um tipo (igreja, semeador N1/N2, parceiro, plataforma). A regra vale no momento da oferta e fica gravada nela. **Os percentuais de "com N2" que vieram preenchidos são exemplos: confira com a diretoria.**
 - **Parceiro da campanha:** cadastrado em Parcerias com WhatsApp e chave PIX (cifrados); vê saldo e movimentações no app (*Meu painel*), sem dados de quem ofertou.
+- **Transações:** em Repasses, a aba *Todas as movimentações* lista cada lançamento com filtros por beneficiário, situação e período.
 - **Repasses** (`compartilhado/src/repasses.ts`): cada oferta paga gera lançamentos "a pagar" (os centavos do arredondamento vão para a plataforma, e a soma sempre bate). Em **Repasses** (só administradores) a equipe vê quanto pagar e a chave PIX, e registra o pagamento. Igreja, semeador e parceiro veem "a receber" e "já recebido" no app.
 - **Ofertas:** detalhe com cupons e divisão, planilha dos cupons de cada oferta e **registro manual** de oferta recebida fora do app (só administradores; entra paga e gera números e repasses).
 - **Aprovações** num lugar só, com motivo da recusa e aviso no celular de quem se cadastrou. **Meta de ofertas** com barra de progresso, **resumo dos sorteios**, **conferência do formato das artes** (cupom 640 × 930, panfleto 1200 × 470) e **Central de ajuda** (painel web e app admin).

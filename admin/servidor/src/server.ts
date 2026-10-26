@@ -9,6 +9,7 @@ import { tratarErros } from '../../../compartilhado/src/util.ts';
 import { semearAdmin } from './auth.ts';
 import { env } from './env.ts';
 import { admin } from './rotas/admin.ts';
+import { entrada, perfil } from './rotas/perfil.ts';
 
 // Sistema administrativo: servidor, login e segredo próprios, separado da API do app.
 semear({ demo: env.dev });
@@ -29,6 +30,9 @@ app.use(express.json({ limit: '1mb' }));
 app.use('/uploads', servirUploads());
 // Para o monitoramento saber se o servidor está de pé (sem dados).
 app.get('/api/saude', (_req, res) => res.json({ ok: true }));
+// Entrada pelo WhatsApp e painel dos perfis (pastor, semeador, parceiro) vêm antes das rotas da equipe.
+app.use('/api', semCache, entrada);
+app.use('/api/perfil', semCache, perfil);
 app.use('/api', semCache, admin);
 app.use('/api', tratarErros);
 

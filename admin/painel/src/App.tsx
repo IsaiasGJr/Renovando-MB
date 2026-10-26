@@ -1,5 +1,4 @@
-import { useMutation } from '@tanstack/react-query';
-import { lazy, Suspense, useEffect, useState, type FormEvent } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { Navigate, NavLink, Outlet, Route, Routes, useNavigate } from 'react-router-dom';
 import {
   BarChart3, Building2, ClipboardList, Flag, Gift, HelpCircle, LayoutDashboard, LogOut,
@@ -7,8 +6,9 @@ import {
   ClipboardCheck, LifeBuoy, Wallet,
 } from './componentes/icones';
 import { Simbolo } from './componentes/Marca';
-import { api, lerSessao, salvarSessao, type Admin } from './api';
-import { Carregando, Erro } from './componentes/ui';
+import { lerSessao, salvarSessao, type Admin } from './api';
+import { lerSessaoPerfil } from './perfil/sessao';
+import { Carregando } from './componentes/ui';
 import { useDashboard } from './consultas';
 
 // Cada página vira um arquivo separado, baixado só quando é aberta:
@@ -16,6 +16,13 @@ import { useDashboard } from './consultas';
 const Auditoria = lazy(() => import('./paginas/Auditoria'));
 const Avisos = lazy(() => import('./paginas/Avisos'));
 const MinhaConta = lazy(() => import('./paginas/MinhaConta'));
+const Login = lazy(() => import('./paginas/Login'));
+const perfil = () => import('./perfil/AreaPerfil');
+const LayoutPerfil = lazy(() => perfil().then((m) => ({ default: m.LayoutPerfil })));
+const PainelPerfil = lazy(() => perfil().then((m) => ({ default: m.PainelPerfil })));
+const CadastrarIgreja = lazy(() => perfil().then((m) => ({ default: m.CadastrarIgreja })));
+const CadastrarSemeador = lazy(() => perfil().then((m) => ({ default: m.CadastrarSemeador })));
+const MinhaIgreja = lazy(() => perfil().then((m) => ({ default: m.MinhaIgreja })));
 const Aprovacoes = lazy(() => import('./paginas/Aprovacoes'));
 const Repasses = lazy(() => import('./paginas/Repasses'));
 const Ajuda = lazy(() => import('./paginas/Ajuda'));
@@ -42,7 +49,14 @@ const UsuariosAdmin = lazy(() => cadastros().then((m) => ({ default: m.UsuariosA
 export default function App() {
   return (
     <Routes>
-      <Route path="/login" element={<Login />} />
+      <Route path="/login" element={<Suspense fallback={<Carregando />}><Login /></Suspense>} />
+      {/* Pastor, semeador e parceiro (entram pelo WhatsApp): painel próprio, separado do da equipe. */}
+      <Route path="/perfil" element={<Suspense fallback={<Carregando />}><LayoutPerfil /></Suspense>}>
+        <Route index element={<Suspense fallback={<Carregando />}><PainelPerfil /></Suspense>} />
+        <Route path="cadastrar-igreja" element={<Suspense fallback={<Carregando />}><CadastrarIgreja /></Suspense>} />
+        <Route path="cadastrar-semeador" element={<Suspense fallback={<Carregando />}><CadastrarSemeador /></Suspense>} />
+        <Route path="minha-igreja/:id" element={<Suspense fallback={<Carregando />}><MinhaIgreja /></Suspense>} />
+      </Route>
       <Route element={<Protegido />}>
         <Route index element={<Dashboard />} />
         <Route path="relatorios" element={<Relatorios />} />
@@ -75,7 +89,8 @@ export default function App() {
 
 function Protegido() {
   const sessao = lerSessao();
-  if (!sessao) return <Navigate to="/login" replace />;
+  // Quem entrou como pastor, semeador ou parceiro tem o painel próprio.
+  if (!sessao) return <Navigate to={lerSessaoPerfil() ? '/perfil' : '/login'} replace />;
   return <Layout admin={sessao.admin} />;
 }
 
@@ -169,65 +184,6 @@ function Layout({ admin }: { admin: Admin }) {
           <Outlet />
         </Suspense>
       </main>
-    </div>
-  );
-}
-
-function Login() {
-  const navigate = useNavigate();
-  const [email, setEmail] = useState('');
-  const [senha, setSenha] = useState('');
-  // Segunda etapa: depois da senha certa, o servidor pede o código do aplicativo autenticador.
-  const [pedeCodigo, setPedeCodigo] = useState(false);
-  const [codigo, setCodigo] = useState('');
-  const entrar = useMutation({
-    mutationFn: () =>
-      api<{ token?: string; admin?: Admin; precisaCodigo?: boolean; configurar2fa?: boolean }>('/login', {
-        method: 'POST', json: { email, senha, ...(pedeCodigo ? { codigo } : {}) },
-      }),
-    onSuccess: (s) => {
-      if (s.precisaCodigo) return setPedeCodigo(true);
-      salvarSessao({ token: s.token!, admin: s.admin! });
-      navigate(s.configurar2fa ? '/conta' : '/', { replace: true });
-    },
-  });
-
-  function enviar(e: FormEvent) {
-    e.preventDefault();
-    entrar.mutate();
-  }
-
-  return (
-    <div className="tela-login">
-      <form className="cartao pilha" onSubmit={enviar}>
-        <div className="login-marca">
-          <Simbolo tamanho={56} branca={false} />
-          <div>
-            <h1>Renovando</h1>
-            <p style={{ color: 'var(--texto-2)', margin: '2px 0 0' }}>Painel administrativo</p>
-          </div>
-        </div>
-        <Erro erro={entrar.error} />
-        <div className="campo">
-          <label htmlFor="email">E-mail</label>
-          <input id="email" className="input" type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} required />
-        </div>
-        <div className="campo">
-          <label htmlFor="senha">Senha</label>
-          <input id="senha" className="input" type="password" autoComplete="current-password" value={senha} onChange={(e) => setSenha(e.target.value)} required />
-        </div>
-        {pedeCodigo ? (
-          <div className="campo">
-            <label htmlFor="codigo">Código do aplicativo autenticador</label>
-            <input id="codigo" className="input" inputMode="numeric" autoComplete="one-time-code" autoFocus placeholder="000000"
-              value={codigo} onChange={(e) => setCodigo(e.target.value.replace(/\D/g, '').slice(0, 6))} required />
-            <span className="ajuda">Abra o Google Authenticator (ou similar) e digite o código de 6 dígitos do Renovando Admin.</span>
-          </div>
-        ) : null}
-        <button className="btn" style={{ justifyContent: 'center', minHeight: 40 }} disabled={entrar.isPending || (pedeCodigo && codigo.length !== 6)}>
-          {entrar.isPending ? 'Entrando…' : pedeCodigo ? 'Confirmar código' : 'Entrar'}
-        </button>
-      </form>
     </div>
   );
 }

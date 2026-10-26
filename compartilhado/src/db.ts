@@ -290,6 +290,9 @@ garantirColuna('premios', 'lembrete_enviado_em', 'TEXT');
 garantirColuna('admins', 'totp_segredo', "TEXT NOT NULL DEFAULT ''");
 garantirColuna('admins', 'totp_ativo', 'INTEGER NOT NULL DEFAULT 0');
 garantirColuna('admins', 'totp_ultimo_passo', 'INTEGER NOT NULL DEFAULT -1');
+// WhatsApp de acesso da equipe (entrada pelo código no WhatsApp, como no site). Cifrado + índice de busca.
+garantirColuna('admins', 'whatsapp', "TEXT NOT NULL DEFAULT ''");
+garantirColuna('admins', 'whatsapp_indice', 'TEXT');
 // Celulares que aceitaram receber avisos (token do serviço de notificações da Expo).
 db.exec(`CREATE TABLE IF NOT EXISTS dispositivos (
   token TEXT PRIMARY KEY,

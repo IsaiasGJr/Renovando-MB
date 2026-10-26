@@ -6,6 +6,17 @@ export type Guia = { grupo: string; titulo: string; passos: string[] };
 
 export const GUIAS: Guia[] = [
   {
+    grupo: 'Começando', titulo: 'Entrar pelo WhatsApp (equipe, pastor, semeador e parceiro)',
+    passos: [
+      'Na tela de entrada, deixe "WhatsApp" marcado, digite o número e toque em Receber código no WhatsApp.',
+      'Digite o código de 6 dígitos que chegou no WhatsApp.',
+      'Se o número tiver mais de um perfil (ex.: pastor e semeador), escolha com qual entrar.',
+      'Equipe: o número precisa estar em Usuários do painel (campo WhatsApp de acesso). Quem tem verificação em duas etapas digita também o código do aplicativo.',
+      'Pastor, semeador e parceiro entram no painel deles: igreja, rede, saldo, movimentações e panfletos. O semeador cadastra igrejas e (se for N1) semeadores N2.',
+      'Cadastro ainda em análise ou recusado aparece na própria tela de entrada.',
+    ],
+  },
+  {
     grupo: 'Começando', titulo: 'Primeiro acesso e segurança da conta',
     passos: [
       'Entre com o e-mail e a senha que o administrador criou para você.',

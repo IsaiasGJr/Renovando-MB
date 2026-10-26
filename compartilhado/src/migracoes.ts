@@ -16,6 +16,7 @@ const COLUNAS_CIFRADAS: [tabela: string, coluna: string][] = [
   ['semeadores', 'chave_pix'],
   ['parceiros', 'whatsapp'],
   ['parceiros', 'chave_pix'],
+  ['admins', 'whatsapp'],
 ];
 
 const ehMarcador = (v: string) => v.startsWith('excluido:');

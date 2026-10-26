@@ -10,7 +10,7 @@ const envAdmin = Object.fromEntries(readFileSync(envAdminPath, 'utf8').split('\n
 process.loadEnvFile(new URL('../api/.env', import.meta.url));
 
 const { base32, codigoNoPasso, conferirCodigoTotp, passoAtual } = await import('../admin/servidor/src/totp.ts');
-const { enviarCodigoWhatsapp } = await import('../api/src/whatsapp.ts');
+const { enviarCodigoWhatsapp } = await import('../compartilhado/src/whatsapp.ts');
 const { enviarAviso } = await import('../compartilhado/src/avisos.ts');
 
 const API = 'http://localhost:3333/api';

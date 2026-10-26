@@ -150,7 +150,7 @@ const LADO_MAXIMO = 1600;
  * qualidade 80 e REMOVE os metadados (EXIF com local do GPS, modelo do aparelho...).
  * GIF animado continua animado.
  */
-async function otimizarImagem(original: Buffer) {
+export async function otimizarImagem(original: Buffer) {
   const animado = ((await sharp(original).metadata()).pages ?? 1) > 1;
   return sharp(original, { animated: animado })
     .rotate()
@@ -713,13 +713,17 @@ crud(
     rotulo: (l) => String(l.email),
     ordem: 'nome',
     booleanos: ['ativo', 'totpAtivo'],
-    ocultar: ['senhaHash', 'totpSegredo', 'totpUltimoPasso'],
+    ocultar: ['senhaHash', 'totpSegredo', 'totpUltimoPasso', 'whatsappIndice'],
+    // O WhatsApp aparece completo para quem gerencia acessos: é a credencial de entrada pelo código (como no site).
+    cifrados: ['whatsapp'],
     schema: z.object({
       nome: texto(2),
       email: z.string().trim().toLowerCase().email(),
       senha: z.string().min(8, 'mínimo de 8 caracteres').optional(),
       papel: z.enum(['admin', 'editor']).default('editor'),
       ativo: z.boolean().default(true),
+      // WhatsApp de acesso: com ele a pessoa entra no painel pelo código (opcional; e-mail e senha continuam valendo).
+      whatsapp: z.string().transform(soDigitos).refine((v) => v === '' || v.length === 11, 'informe DDD + número').default(''),
       // Só dá para DESLIGAR por aqui (ex.: a pessoa perdeu o celular). Ligar, só ela mesma em Minha conta.
       totpAtivo: z.boolean().optional(),
     }),
@@ -729,6 +733,14 @@ crud(
       const ligado = id ? !!um<{ totpAtivo: number }>('SELECT totp_ativo FROM admins WHERE id = ?', id)?.totpAtivo : false;
       const totpAtivo = pedido === false && ligado ? false : undefined;
       if (totpAtivo === false) Object.assign(resto, { totpAtivo: false, totpSegredo: '', totpUltimoPasso: -1 });
+      const fone = (resto as { whatsapp?: string }).whatsapp;
+      if (fone !== undefined) {
+        const idx = fone ? indice(fone) : null;
+        if (idx && um('SELECT 1 FROM admins WHERE whatsapp_indice = ? AND id IS NOT ?', idx, id ?? null)) {
+          throw new ErroHttp(409, 'Este WhatsApp já é o acesso de outro usuário do painel.');
+        }
+        Object.assign(resto, { whatsappIndice: idx });
+      }
       if (!id && !senha) throw new ErroHttp(400, 'Informe uma senha para o novo usuário.');
       if (id === req.admin!.id && (resto as { ativo?: boolean }).ativo === false) {
         throw new ErroHttp(400, 'Você não pode desativar o próprio usuário.');
@@ -897,6 +909,35 @@ admin.post('/repasses/:tipo/:id/pagar', somenteAdmin, (req, res) => {
   if (!r) throw new ErroHttp(400, 'Não há saldo a receber para este beneficiário.');
   auditar(req, 'registrar_pagamento', 'repasses', id, `Repasse de R$ ${r.valor.toFixed(2)} (${tipo})`, { valor: r.valor, referencia: d.referencia });
   res.json(r);
+});
+
+// Lista única de movimentações (como "Transações financeiras" do site), com filtros.
+admin.get('/movimentacoes', somenteAdmin, (req, res) => {
+  const cond: string[] = [];
+  const params: (string | number)[] = [];
+  const tipo = query(req, 'tipo');
+  const status = query(req, 'status');
+  const campanhaId = query(req, 'campanhaId');
+  const de = query(req, 'de');
+  const ate = query(req, 'ate');
+  if (tipo) (cond.push('l.beneficiario_tipo = ?'), params.push(tipo));
+  if (status) (cond.push('l.status = ?'), params.push(status));
+  if (campanhaId) (cond.push('l.campanha_id = ?'), params.push(campanhaId));
+  if (de) (cond.push('l.criado_em >= ?'), params.push(de.slice(0, 10)));
+  if (ate) (cond.push('l.criado_em <= ?'), params.push(`${ate.slice(0, 10)}T23:59:59.999Z`));
+  const where = cond.length ? `WHERE ${cond.join(' AND ')}` : '';
+  const pagina = Math.max(1, Number(query(req, 'pagina') ?? 1));
+  const total = um<{ n: number; soma: number }>(`SELECT COUNT(*) AS n, ROUND(COALESCE(SUM(l.valor), 0), 2) AS soma FROM lancamentos l ${where}`, ...params)!;
+  const linhas = todos(
+    `SELECT l.id, l.criado_em, l.pago_em, l.status, l.papel, l.percentual, l.valor, l.beneficiario_tipo, c.edicao AS campanha, i.nome_fantasia AS igreja,
+            CASE l.beneficiario_tipo WHEN 'igreja' THEN (SELECT nome_fantasia FROM igrejas WHERE id = l.beneficiario_id)
+              WHEN 'semeador' THEN (SELECT nome || ' ' || sobrenome FROM semeadores WHERE id = l.beneficiario_id)
+              WHEN 'parceiro' THEN (SELECT nome FROM parceiros WHERE id = l.beneficiario_id) ELSE 'Plataforma' END AS beneficiario
+       FROM lancamentos l JOIN ofertas o ON o.id = l.oferta_id JOIN igrejas i ON i.id = o.igreja_id JOIN campanhas c ON c.id = l.campanha_id
+       ${where} ORDER BY l.criado_em DESC LIMIT 50 OFFSET ?`,
+    ...params, (pagina - 1) * 50,
+  );
+  res.json({ total: total.n, soma: total.soma, pagina, porPagina: 50, linhas });
 });
 
 // ---------- Sorteios (resumo) ----------

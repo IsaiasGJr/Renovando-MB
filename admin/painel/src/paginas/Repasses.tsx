@@ -25,6 +25,7 @@ export default function Repasses() {
   const campanhas = useCampanhas();
   const [campanhaId, setCampanhaId] = useState('');
   const lista = useQuery({ queryKey: ['repasses', campanhaId], queryFn: () => api<Linha[]>(`/repasses${campanhaId ? `?campanhaId=${campanhaId}` : ''}`) });
+  const [aba, setAba] = useState<'beneficiarios' | 'movimentacoes'>('beneficiarios');
   const [aberto, setAberto] = useState<Linha | null>(null);
   const [referencia, setReferencia] = useState('');
   const [observacao, setObservacao] = useState('');
@@ -59,6 +60,12 @@ export default function Repasses() {
           </select>
         </div>
       </div>
+      <div className="abas" role="tablist">
+        <button role="tab" aria-selected={aba === 'beneficiarios'} className={`btn ${aba === 'beneficiarios' ? '' : 'sec'} peq`} onClick={() => setAba('beneficiarios')}>Por beneficiário</button>
+        <button role="tab" aria-selected={aba === 'movimentacoes'} className={`btn ${aba === 'movimentacoes' ? '' : 'sec'} peq`} onClick={() => setAba('movimentacoes')}>Todas as movimentações</button>
+      </div>
+      {aba === 'movimentacoes' ? <TodasMovimentacoes campanhaId={campanhaId} /> : null}
+      {aba === 'beneficiarios' ? <>
       <div className="grade grade-2">
         <div className="cartao kpi"><div className="rotulo">A pagar</div><div className="valor">{moeda(totalAPagar)}</div></div>
         <div className="cartao kpi"><div className="rotulo">Já pago</div><div className="valor">{moeda(totalPago)}</div></div>
@@ -87,6 +94,8 @@ export default function Repasses() {
           </div>
         </div>
       ) : null}
+
+      </> : null}
 
       {aberto ? (
         <Modal titulo={`${TIPO[aberto.beneficiarioTipo]}: ${aberto.nome}`} onFechar={() => setAberto(null)}>
@@ -154,6 +163,65 @@ export default function Repasses() {
             ) : <Carregando />}
           </div>
         </Modal>
+      ) : null}
+    </div>
+  );
+}
+
+type MovLinha = { id: string; criadoEm: string; pagoEm: string | null; status: string; papel: string; percentual: number; valor: number; beneficiarioTipo: Linha['beneficiarioTipo']; campanha: string; igreja: string; beneficiario: string };
+
+/** Lista única de lançamentos com filtros (tipo de beneficiário, situação e período). */
+function TodasMovimentacoes({ campanhaId }: { campanhaId: string }) {
+  const [f, setF] = useState({ tipo: '', status: '', de: '', ate: '' });
+  const [pagina, setPagina] = useState(1);
+  const qs = new URLSearchParams(Object.entries({ ...f, campanhaId, pagina: String(pagina) }).filter(([, v]) => v)).toString();
+  const q = useQuery({ queryKey: ['movimentacoes', qs], queryFn: () => api<{ total: number; soma: number; pagina: number; porPagina: number; linhas: MovLinha[] }>(`/movimentacoes?${qs}`) });
+  const set = (p: Partial<typeof f>) => (setPagina(1), setF((v) => ({ ...v, ...p })));
+  return (
+    <div className="pilha">
+      <div className="filtros">
+        <div className="campo"><label htmlFor="m-t">Beneficiário</label>
+          <select id="m-t" className="input" value={f.tipo} onChange={(e) => set({ tipo: e.target.value })}>
+            <option value="">Todos</option><option value="igreja">Igreja</option><option value="semeador">Semeador</option><option value="parceiro">Parceiro</option><option value="plataforma">Plataforma</option>
+          </select></div>
+        <div className="campo"><label htmlFor="m-s">Situação</label>
+          <select id="m-s" className="input" value={f.status} onChange={(e) => set({ status: e.target.value })}>
+            <option value="">Todas</option><option value="a_pagar">A pagar</option><option value="pago">Pago</option>
+          </select></div>
+        <div className="campo"><label htmlFor="m-de">De</label><input id="m-de" type="date" className="input" value={f.de} onChange={(e) => set({ de: e.target.value })} /></div>
+        <div className="campo"><label htmlFor="m-ate">Até</label><input id="m-ate" type="date" className="input" value={f.ate} onChange={(e) => set({ ate: e.target.value })} /></div>
+      </div>
+      <Erro erro={q.error} />
+      {q.isLoading ? <Carregando /> : null}
+      {q.data ? (
+        <div className="cartao">
+          <h2>{q.data.total} lançamento(s) · {moeda(q.data.soma)}</h2>
+          <div className="tabela-wrap">
+            <table className="cartoes">
+              <thead><tr><th>Data</th><th>Beneficiário</th><th>Igreja da oferta</th><th>Parte</th><th className="num">Valor</th><th>Situação</th></tr></thead>
+              <tbody>
+                {q.data.linhas.length === 0 ? <tr><td colSpan={6} className="vazio">Nenhuma movimentação com esses filtros.</td></tr> : null}
+                {q.data.linhas.map((m) => (
+                  <tr key={m.id}>
+                    <td data-rotulo="Data">{dataHora(m.criadoEm)}</td>
+                    <td data-titulo>{m.beneficiario}<div style={{ color: 'var(--texto-3)', fontSize: 12 }}>{TIPO[m.beneficiarioTipo]}</div></td>
+                    <td data-rotulo="Igreja">{m.igreja}<div style={{ color: 'var(--texto-3)', fontSize: 12 }}>{m.campanha}</div></td>
+                    <td data-rotulo="Parte">{m.papel} ({m.percentual}%)</td>
+                    <td className="num" data-rotulo="Valor">{moeda(m.valor)}</td>
+                    <td data-rotulo="Situação"><Selo status={m.status === 'pago' ? 'paga' : 'pendente'} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="paginacao">
+            <span>Página {q.data.pagina} de {Math.max(1, Math.ceil(q.data.total / q.data.porPagina))}</span>
+            <div className="linha">
+              <button className="btn sec peq" disabled={pagina <= 1} onClick={() => setPagina(pagina - 1)}>Anterior</button>
+              <button className="btn sec peq" disabled={pagina * q.data.porPagina >= q.data.total} onClick={() => setPagina(pagina + 1)}>Próxima</button>
+            </div>
+          </div>
+        </div>
       ) : null}
     </div>
   );

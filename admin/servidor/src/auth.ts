@@ -2,6 +2,7 @@ import bcrypt from 'bcryptjs';
 import type { NextFunction, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { inserir, um } from '../../../compartilhado/src/db.ts';
+import { perfisDoWhatsapp, type TipoPerfil } from '../../../compartilhado/src/perfis.ts';
 import { ErroHttp, novoId } from '../../../compartilhado/src/util.ts';
 import { env } from './env.ts';
 
@@ -66,4 +67,48 @@ export function semearAdmin() {
     papel: 'admin',
   });
   console.log(`[admin] Primeiro administrador criado: ${env.adminEmail} (senha em ADMIN_SENHA no .env)`);
+}
+
+// ---------- Perfis que entram pelo WhatsApp (pastor, semeador, parceiro) ----------
+// Têm "audience" própria: um token de perfil NUNCA abre as rotas da equipe (exigirAdmin recusa).
+
+type TokenPerfil = { sub: string; perfil: Exclude<TipoPerfil, 'equipe'>; id: string };
+
+declare global {
+  // eslint-disable-next-line @typescript-eslint/no-namespace
+  namespace Express {
+    interface Request {
+      perfil?: { tipo: Exclude<TipoPerfil, 'equipe'>; indice: string; id: string; rotulo: string; nome: string };
+    }
+  }
+}
+
+export const assinarPerfil = (t: TokenPerfil) => jwt.sign(t, env.jwtSegredo, { expiresIn: '12h', audience: 'renovando-perfil' });
+
+/** Passo intermediário (depois do código do WhatsApp, antes de escolher o perfil). Vale 10 minutos. */
+export const assinarEscolha = (indice: string) => jwt.sign({ sub: indice }, env.jwtSegredo, { expiresIn: '10m', audience: 'renovando-escolha' });
+export function lerEscolha(token: string) {
+  try {
+    return (jwt.verify(token, env.jwtSegredo, { audience: 'renovando-escolha' }) as { sub: string }).sub;
+  } catch {
+    throw new ErroHttp(401, 'O tempo para escolher o perfil acabou. Peça um novo código.');
+  }
+}
+
+export function exigirPerfil(req: Request, _res: Response, next: NextFunction) {
+  const h = req.headers.authorization;
+  let t: TokenPerfil | null = null;
+  if (h?.startsWith('Bearer ')) {
+    try {
+      t = jwt.verify(h.slice(7), env.jwtSegredo, { audience: 'renovando-perfil' }) as TokenPerfil;
+    } catch {
+      t = null;
+    }
+  }
+  if (!t) throw new ErroHttp(401, 'Sessão expirada. Entre novamente.');
+  // O perfil é conferido de novo a cada acesso: igreja desativada ou semeador inativo perde o acesso na hora.
+  const atual = perfisDoWhatsapp(t.sub).perfis.find((p) => p.tipo === t!.perfil);
+  if (!atual) throw new ErroHttp(401, 'Este acesso não está mais ativo. Entre novamente.');
+  req.perfil = { tipo: t.perfil, indice: t.sub, id: atual.id, rotulo: atual.rotulo, nome: atual.detalhe };
+  next();
 }

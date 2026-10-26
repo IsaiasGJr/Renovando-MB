@@ -37,7 +37,8 @@ export async function api<T = unknown>(caminho: string, opcoes: RequestInit & { 
   if (json !== undefined) headers.set('Content-Type', 'application/json');
 
   const r = await fetch(`/api${caminho}`, { ...init, headers, body: json !== undefined ? JSON.stringify(json) : init.body });
-  if (r.status === 401 && caminho !== '/login') {
+  // Na entrada (login, código, perfil) um 401 é só "código errado": não derruba a sessão nem recarrega.
+  if (r.status === 401 && caminho !== '/login' && !caminho.startsWith('/entrar')) {
     salvarSessao(null);
     window.location.assign('/login');
   }
