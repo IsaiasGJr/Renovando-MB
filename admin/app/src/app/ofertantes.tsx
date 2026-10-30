@@ -35,7 +35,7 @@ export default function Ofertantes() {
             {q.error ? <Aviso>{(q.error as Error).message}</Aviso> : null}
           </View>
         }
-        ListEmptyComponent={q.data ? <Vazio texto="Ninguém encontrado." /> : null}
+        ListEmptyComponent={q.data ? <Vazio texto="Ninguém encontrado." /> : undefined}
         renderItem={({ item: u }) => (
           <Cartao style={{ gap: 6 }}>
             <Text style={{ fontSize: 16, fontWeight: '700', color: cores.texto }}>{u.nome} {u.sobrenome}</Text>

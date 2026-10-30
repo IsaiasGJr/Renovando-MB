@@ -71,12 +71,12 @@ export default function PaginaIgreja() {
         {i.descricao ? <Text style={{ color: '#EBD5E2', lineHeight: 21 }}>{i.descricao}</Text> : null}
         <Text style={{ color: '#EBD5E2' }}>Defina o valor da sua oferta para a {i.nome}:</Text>
 
-        <View style={{ backgroundColor: '#fff', borderRadius: raio.lg, padding: espaco.md, paddingLeft: espaco.lg, flexDirection: 'row', alignItems: 'center', gap: espaco.md }}>
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 28, fontWeight: '900', color: cores.primaria }}>{moeda(quantidade * c.valorCupom)}</Text>
-            <Text style={{ color: cores.textoSuave, fontSize: 13 }}>{quantidade} {quantidade === 1 ? 'número' : 'números'} da sorte</Text>
+        <View style={{ backgroundColor: '#fff', borderRadius: raio.lg, padding: espaco.md, paddingHorizontal: espaco.lg, gap: espaco.sm }}>
+          <Text style={{ fontSize: 34, fontWeight: '900', color: cores.primaria, letterSpacing: -0.5 }} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>{moeda(quantidade * c.valorCupom)}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: espaco.md }}>
+            <Text style={{ flex: 1, color: cores.textoSuave, fontSize: 14, fontWeight: '600' }}>{quantidade} {quantidade === 1 ? 'número' : 'números'} da sorte</Text>
+            <Contador valor={quantidade} onChange={(v) => definir({ quantidade: v })} />
           </View>
-          <Contador valor={quantidade} onChange={(v) => definir({ quantidade: v })} />
         </View>
 
         <Pressable onPress={() => ofertar(false)} accessibilityRole="button" style={{ borderRadius: raio.md, overflow: 'hidden' }}>

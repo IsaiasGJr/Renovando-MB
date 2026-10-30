@@ -1,7 +1,20 @@
-export const moeda = (v: number) => (v ?? 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+/**
+ * Números no formato brasileiro sem depender do Intl: no Android (Hermes) o toLocaleString
+ * não formata igual ao navegador. Até "casas" decimais, sem zeros sobrando no fim.
+ */
+export function decimal(v: number, casas = 2) {
+  const [int, dec = ''] = Math.abs(v ?? 0).toFixed(casas).split('.');
+  const fim = dec.replace(/0+$/, '');
+  return `${v < 0 ? '-' : ''}${int.replace(/\B(?=(\d{3})+(?!\d))/g, '.')}${fim ? `,${fim}` : ''}`;
+}
+/** R$ 1.234,50 (sempre com centavos). */
+export const moeda = (v: number) => {
+  const [int, dec] = Math.abs(v ?? 0).toFixed(2).split('.');
+  return `${(v ?? 0) < 0 ? '-' : ''}R$\u00a0${int.replace(/\B(?=(\d{3})+(?!\d))/g, '.')},${dec}`;
+};
 export const moedaCurta = (v: number) =>
-  v >= 1000 ? `R$ ${(v / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} mil` : `R$ ${Math.round(v)}`;
-export const numero = (v: number) => (v ?? 0).toLocaleString('pt-BR');
+  v >= 1000 ? `R$ ${decimal(v / 1000, 1)} mil` : `R$ ${Math.round(v)}`;
+export const numero = (v: number) => decimal(v ?? 0);
 /** Data sem hora ("2026-08-10") é mostrada como está: lida como UTC, voltaria um dia no fuso do Brasil. */
 const soData = (iso: string) => {
   const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);

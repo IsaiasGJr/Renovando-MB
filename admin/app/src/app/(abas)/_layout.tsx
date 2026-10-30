@@ -9,7 +9,7 @@ type Icone = ComponentProps<typeof Ionicons>['name'];
 
 function icone(nome: Icone) {
   return function IconeAba({ color, size }: { color: ColorValue; size: number }) {
-    return <Ionicons name={nome} size={size} color={color} />;
+    return <Ionicons name={nome} size={size} color={color as string} />;
   };
 }
 

@@ -102,28 +102,38 @@ export const httpApi: Api = {
  */
 export async function baixarArquivo(caminho: string, nome: string, tipo: string) {
   const token = useAuth.getState().token;
-  let r: Response;
-  try {
-    r = await fetch(`${BASE_URL}/api${caminho}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
-  } catch {
-    throw new Error('Sem conexão com o servidor. Verifique sua internet e tente de novo.');
-  }
-  if (!r.ok) {
+  const url = `${BASE_URL}/api${caminho}`;
+  const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+  const falhou = async (r: Response) => {
     const erro = (await r.json().catch(() => ({}))) as { erro?: string };
-    throw new Error(erro.erro ?? 'Não foi possível baixar o arquivo. Tente novamente.');
-  }
+    return new Error(erro.erro ?? 'Não foi possível baixar o arquivo. Tente novamente.');
+  };
+  const pedir = () =>
+    fetch(url, { headers }).catch(() => {
+      throw new Error('Sem conexão com o servidor. Verifique sua internet e tente de novo.');
+    });
+
   if (Platform.OS === 'web') {
-    const url = URL.createObjectURL(await r.blob());
-    Object.assign(document.createElement('a'), { href: url, download: nome }).click();
-    URL.revokeObjectURL(url);
+    const r = await pedir();
+    if (!r.ok) throw await falhou(r);
+    const link = URL.createObjectURL(await r.blob());
+    Object.assign(document.createElement('a'), { href: link, download: nome }).click();
+    URL.revokeObjectURL(link);
     return;
   }
+  // No celular o download é nativo, direto para o arquivo: PDFs grandes não passam pela memória do JS.
   const { File, Paths } = await import('expo-file-system');
   const Sharing = await import('expo-sharing');
-  const destino = new File(Paths.cache, nome);
-  destino.create({ overwrite: true });
-  destino.write(new Uint8Array(await r.arrayBuffer()));
-  await Sharing.shareAsync(destino.uri, { mimeType: tipo, dialogTitle: nome });
+  let arquivo: InstanceType<typeof File>;
+  try {
+    arquivo = await File.downloadFileAsync(url, new File(Paths.cache, nome), { headers, idempotent: true });
+  } catch {
+    // Pede de novo só para mostrar a mensagem do servidor (sem permissão, limite, fora do ar...).
+    const r = await pedir();
+    throw r.ok ? new Error('Não foi possível salvar o arquivo no celular. Tente novamente.') : await falhou(r);
+  }
+  if (!(await Sharing.isAvailableAsync())) throw new Error('Este celular não permite compartilhar arquivos.');
+  await Sharing.shareAsync(arquivo.uri, { mimeType: tipo, dialogTitle: nome, UTI: tipo === 'application/pdf' ? 'com.adobe.pdf' : 'public.jpeg' });
 }
 
 /** "Baixar cupom", como no site: o bilhete da campanha com o número e os dados do cupom. */

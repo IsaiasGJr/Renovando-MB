@@ -64,11 +64,11 @@ export default function Auditoria() {
         data={linhas}
         keyExtractor={(r) => r.id}
         contentContainerStyle={ui.conteudo}
-        refreshControl={<RefreshControl refreshing={q.isRefetching} onRefresh={q.refetch} tintColor={cores.primaria} />}
+        refreshControl={<RefreshControl refreshing={q.isRefetching} onRefresh={() => void q.refetch()} tintColor={cores.primaria} />}
         ItemSeparatorComponent={() => <View style={{ height: espaco.sm }} />}
         onEndReached={() => q.hasNextPage && !q.isFetchingNextPage && q.fetchNextPage()}
         onEndReachedThreshold={0.4}
-        ListFooterComponent={q.isFetchingNextPage ? <ActivityIndicator color={cores.primaria} /> : null}
+        ListFooterComponent={q.isFetchingNextPage ? <ActivityIndicator color={cores.primaria} /> : undefined}
         ListHeaderComponent={
           <View style={{ gap: espaco.md }}>
             <Text style={{ color: cores.textoSuave, lineHeight: 20 }}>
@@ -79,7 +79,7 @@ export default function Auditoria() {
             {q.error ? <Aviso>{(q.error as Error).message}</Aviso> : null}
           </View>
         }
-        ListEmptyComponent={q.data ? <Vazio texto="Nada registrado." /> : null}
+        ListEmptyComponent={q.data ? <Vazio texto="Nada registrado." /> : undefined}
         renderItem={({ item: r }) => (
           <Cartao style={{ gap: 4 }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: espaco.sm }}>

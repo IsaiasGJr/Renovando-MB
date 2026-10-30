@@ -9,7 +9,7 @@ import { Aviso, Botao, Carregando, Cartao, s as ui } from '@/components/ui';
 import { useSessao } from '@/store/sessao';
 import { cores, espaco, gradienteMarca, raio, sombra } from '@/theme';
 import { ROTULO_STATUS_OFERTA, useDashboard } from '@/tipos';
-import { data, isoDias, moeda, numero } from '@/utils/format';
+import { data, decimal, isoDias, moeda, numero } from '@/utils/format';
 
 function Titulo({ children }: { children: string }) {
   return <Text style={{ fontSize: 17, fontWeight: '700', color: cores.texto, marginBottom: 4 }}>{children}</Text>;
@@ -23,7 +23,7 @@ export default function Inicio() {
   return (
     <SafeAreaView style={ui.tela} edges={['top']}>
       <ScrollView contentContainerStyle={ui.conteudo}
-        refreshControl={<RefreshControl refreshing={q.isRefetching} onRefresh={q.refetch} tintColor={cores.primaria} />}>
+        refreshControl={<RefreshControl refreshing={q.isRefetching} onRefresh={() => void q.refetch()} tintColor={cores.primaria} />}>
         <LinearGradient colors={[...gradienteMarca]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
           style={[{ borderRadius: raio.xl, padding: espaco.xl, gap: espaco.md, overflow: 'hidden' }, sombra(2)]}>
           <View style={{ position: 'absolute', width: 180, height: 180, borderRadius: 90, backgroundColor: 'rgba(255,255,255,0.06)', top: -60, right: -50 }} />
@@ -63,14 +63,14 @@ export default function Inicio() {
               <Kpi destaque icone="wallet" rotulo="Arrecadado" valor={moeda(d.resumo.arrecadado)} detalhe={`${numero(d.resumo.ofertas)} ofertas pagas`} />
               <Kpi icone="ticket" rotulo="Cupons" valor={numero(d.resumo.cupons)} detalhe={`${numero(d.resumo.ofertantes)} ofertantes`} />
               <Kpi icone="receipt" rotulo="Ticket médio" valor={moeda(d.resumo.ticketMedio)} detalhe="por oferta paga" />
-              <Kpi icone="trending-up" rotulo="Conversão do PIX" valor={`${d.resumo.conversao.toLocaleString('pt-BR')}%`} detalhe="PIX gerados que foram pagos" />
+              <Kpi icone="trending-up" rotulo="Conversão do PIX" valor={`${decimal(d.resumo.conversao, 1)}%`} detalhe="PIX gerados que foram pagos" />
               <Kpi icone="business" rotulo="Igrejas ativas" valor={numero(d.igrejasAtivas)} />
             </GradeKpi>
             {d.meta > 0 ? (
               <View style={{ gap: 6 }}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                   <Text style={{ fontWeight: '700', color: cores.texto }}>Meta da campanha</Text>
-                  <Text style={{ color: cores.textoSuave }}>{Math.min(100, Math.round((d.resumo.arrecadado / d.meta) * 1000) / 10).toLocaleString('pt-BR')}% de {moeda(d.meta)}</Text>
+                  <Text style={{ color: cores.textoSuave }}>{decimal(Math.min(100, (d.resumo.arrecadado / d.meta) * 100), 1)}% de {moeda(d.meta)}</Text>
                 </View>
                 <View style={{ height: 10, borderRadius: 999, backgroundColor: cores.primariaClara, overflow: 'hidden' }}
                   accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: d.meta, now: d.resumo.arrecadado }}>

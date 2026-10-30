@@ -40,7 +40,7 @@ export default function Repasses() {
             {q.error ? <Aviso>{(q.error as Error).message}</Aviso> : null}
           </View>
         }
-        ListEmptyComponent={q.data ? <Vazio texto="Ainda não há ofertas pagas." /> : null}
+        ListEmptyComponent={q.data ? <Vazio texto="Ainda não há ofertas pagas." /> : undefined}
         renderItem={({ item: l }) => (
           <Pressable accessibilityRole="button"
             onPress={() => router.push({ pathname: '/repasse', params: { tipo: l.beneficiarioTipo, id: l.beneficiarioId ?? 'plataforma', nome: l.nome, chave: l.chavePix, tipoChave: l.tipoChavePix } })}>

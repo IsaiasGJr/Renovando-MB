@@ -97,7 +97,7 @@ const Catalogo = memo(function Catalogo({ artistas }: { artistas?: Artista[] }) 
       {lado ? artistas?.map((a) => (
         <Pressable key={a.id} onPress={() => a.slug && router.push({ pathname: '/artista/[slug]', params: { slug: a.slug } })}
           accessibilityRole="button" accessibilityLabel={`Ver ${a.nome}`}
-          style={[{ width: lado, aspectRatio: 3 / 4, backgroundColor: cores.primariaProfunda, borderRadius: raio.lg, overflow: 'hidden' }, sombra(1)]}>
+          style={[{ width: lado, height: Math.round((lado * 4) / 3), backgroundColor: cores.primariaProfunda, borderRadius: raio.lg, overflow: 'hidden' }, sombra(1)]}>
           {/* Fotos em retrato: corta por baixo e preserva o rosto. */}
           {a.fotoUrl ? <Imagem url={a.fotoUrl} style={StyleSheet.absoluteFill} posicao="top" />
             : <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><Ionicons name="mic" size={30} color={cores.primariaSuave} /></View>}

@@ -76,7 +76,7 @@ export default function Lista() {
         data={lista.data ?? []}
         keyExtractor={(l) => l.id}
         contentContainerStyle={[ui.conteudo, { paddingBottom: 100 }]}
-        refreshControl={<RefreshControl refreshing={lista.isRefetching} onRefresh={lista.refetch} tintColor={cores.primaria} />}
+        refreshControl={<RefreshControl refreshing={lista.isRefetching} onRefresh={() => void lista.refetch()} tintColor={cores.primaria} />}
         ListHeaderComponent={
           <View style={{ gap: espaco.md }}>
             {r.descricao ? <Text style={{ color: cores.textoSuave, lineHeight: 20 }}>{r.descricao}</Text> : null}
@@ -98,7 +98,7 @@ export default function Lista() {
             {panfleto.error ? <Aviso>{(panfleto.error as Error).message}</Aviso> : null}
           </View>
         }
-        ListEmptyComponent={lista.data ? <Vazio texto="Nenhum registro." /> : null}
+        ListEmptyComponent={lista.data ? <Vazio texto="Nenhum registro." /> : undefined}
         renderItem={({ item: l }) => {
           const it = r.item(l);
           const rapidas = r.acoesRapidas?.(l) ?? [];

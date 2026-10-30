@@ -82,7 +82,7 @@ export default function Cupons() {
         maxToRenderPerBatch={8}
         windowSize={7}
         removeClippedSubviews
-        refreshControl={<RefreshControl refreshing={q.isRefetching} onRefresh={q.refetch} tintColor={cores.primaria} />}
+        refreshControl={<RefreshControl refreshing={q.isRefetching} onRefresh={() => void q.refetch()} tintColor={cores.primaria} />}
         ListHeaderComponent={
           <View style={{ gap: espaco.lg }}>
             <Titulo sub="Cada cupom conta uma boa história.">Meus cupons</Titulo>
@@ -128,7 +128,7 @@ export default function Cupons() {
               </Text>
               <Botao titulo="Fazer uma oferta" onPress={() => router.navigate('/')} />
             </View>
-          ) : null
+          ) : undefined
         }
       />
     </SafeAreaView>

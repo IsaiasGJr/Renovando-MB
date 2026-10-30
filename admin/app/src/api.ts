@@ -85,39 +85,40 @@ export async function enviarImagem(original: { uri: string; nome?: string | null
   return url;
 }
 
-/** Baixa um anexo do "Fale conosco" (precisa do login do admin) e abre o menu de compartilhar. */
-export async function baixarAnexo(arquivo: string, nome: string) {
-  const r = await fetch(`${BASE_URL}/api/anexos/${encodeURIComponent(arquivo)}`, { headers: cabecalhos() });
-  if (!r.ok) throw new Error('Não foi possível baixar o anexo.');
-  const blob = await r.blob();
+/**
+ * Baixa um arquivo protegido pelo login do admin e abre o menu de compartilhar (WhatsApp, imprimir, Drive...).
+ * No celular o download é nativo, direto para o arquivo: PDFs grandes não passam pela memória do JS.
+ */
+async function baixarECompartilhar(caminho: string, nome: string, tipo: string | undefined, erroPadrao: string) {
+  const url = `${BASE_URL}/api${caminho}`;
+  const falhou = async (r: Response) =>
+    new Error((await r.json().catch(() => ({})) as { erro?: string }).erro ?? erroPadrao);
   if (Platform.OS === 'web') {
-    const url = URL.createObjectURL(blob);
-    Object.assign(document.createElement('a'), { href: url, download: nome }).click();
-    URL.revokeObjectURL(url);
+    const r = await fetch(url, { headers: cabecalhos() });
+    if (!r.ok) throw await falhou(r);
+    const link = URL.createObjectURL(await r.blob());
+    Object.assign(document.createElement('a'), { href: link, download: nome }).click();
+    URL.revokeObjectURL(link);
     return;
   }
-  const destino = new File(Paths.cache, `${Date.now()}-${nome.replace(/[^\w.-]/g, '_')}`);
-  destino.create({ overwrite: true });
-  destino.write(new Uint8Array(await blob.arrayBuffer()));
-  await Sharing.shareAsync(destino.uri, { dialogTitle: nome });
+  let arquivo: File;
+  try {
+    arquivo = await File.downloadFileAsync(url, new File(Paths.cache, nome.replace(/[^\w.-]/g, '_')), { headers: cabecalhos(), idempotent: true });
+  } catch {
+    // Pede de novo só para mostrar a mensagem do servidor.
+    const r = await fetch(url, { headers: cabecalhos() });
+    throw r.ok ? new Error('Não foi possível salvar o arquivo no celular.') : await falhou(r);
+  }
+  await Sharing.shareAsync(arquivo.uri, { mimeType: tipo, dialogTitle: nome });
 }
 
+/** Baixa um anexo do "Fale conosco" (precisa do login do admin) e abre o menu de compartilhar. */
+export const baixarAnexo = (arquivo: string, nome: string) =>
+  baixarECompartilhar(`/anexos/${encodeURIComponent(arquivo)}`, `${Date.now()}-${nome}`, undefined, 'Não foi possível baixar o anexo.');
+
 /** Baixa um arquivo do admin (ex.: PDF do panfleto) e abre o menu de compartilhar (WhatsApp, imprimir, Drive...). */
-export async function baixarArquivo(caminho: string, nome: string, tipo: string) {
-  const r = await fetch(`${BASE_URL}/api${caminho}`, { headers: cabecalhos() });
-  if (!r.ok) throw new Error((await r.json().catch(() => ({})) as { erro?: string }).erro ?? 'Não foi possível gerar o arquivo.');
-  const blob = await r.blob();
-  if (Platform.OS === 'web') {
-    const url = URL.createObjectURL(blob);
-    Object.assign(document.createElement('a'), { href: url, download: nome }).click();
-    URL.revokeObjectURL(url);
-    return;
-  }
-  const destino = new File(Paths.cache, nome.replace(/[^\w.-]/g, '_'));
-  destino.create({ overwrite: true });
-  destino.write(new Uint8Array(await blob.arrayBuffer()));
-  await Sharing.shareAsync(destino.uri, { mimeType: tipo, dialogTitle: nome });
-}
+export const baixarArquivo = (caminho: string, nome: string, tipo: string) =>
+  baixarECompartilhar(caminho, nome, tipo, 'Não foi possível gerar o arquivo.');
 
 /** Baixa o CSV do relatório e abre o menu de compartilhar (WhatsApp, e-mail, Drive...). */
 export async function compartilharCsv(caminho: string, nome: string) {
@@ -132,6 +133,6 @@ export async function compartilharCsv(caminho: string, nome: string) {
   }
   const arquivo = new File(Paths.cache, nome);
   arquivo.create({ overwrite: true });
-  arquivo.write(texto);
+  await arquivo.write(texto);
   await Sharing.shareAsync(arquivo.uri, { mimeType: 'text/csv', dialogTitle: 'Compartilhar relatório' });
 }

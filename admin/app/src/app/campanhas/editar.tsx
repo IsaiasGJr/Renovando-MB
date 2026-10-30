@@ -11,7 +11,7 @@ import { Aviso, Botao, Campo, Carregando, Cartao, s as ui } from '@/components/u
 import { cores, espaco } from '@/theme';
 import { useCampanhas, type Campanha } from '@/tipos';
 import { confirmar, voltar } from '@/utils/confirmar';
-import { brParaIso, isoParaBr, mascaraData } from '@/utils/format';
+import { brParaIso, decimal, isoParaBr, mascaraData } from '@/utils/format';
 
 type Form = {
   edicao: string; titulo: string; subtitulo: string; descricao: string; valorCupom: string;
@@ -163,7 +163,7 @@ function EditorDivisao({ titulo, itens, onChange, ajuda }: { titulo: string; ite
     <Cartao>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: espaco.sm }}>
         <Text style={{ fontSize: 16, fontWeight: '700', color: cores.texto, flexShrink: 1 }}>{titulo}</Text>
-        <Selo status={ok ? 'ativa' : 'rejeitada'} texto={`Total ${(Math.round(soma * 100) / 100).toLocaleString('pt-BR')}%`} />
+        <Selo status={ok ? 'ativa' : 'rejeitada'} texto={`Total ${decimal(soma)}%`} />
       </View>
       {itens.map((d, i) => (
         <View key={i} style={{ gap: 6, borderTopWidth: i ? 1 : 0, borderTopColor: cores.borda, paddingTop: i ? espaco.sm : 0 }}>

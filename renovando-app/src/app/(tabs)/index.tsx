@@ -169,14 +169,13 @@ export default function Inicio() {
         </Text>
         <Text style={st.heroSub}>Escolha o valor da sua oferta e concorra:</Text>
 
+        {/* Valor numa linha só, com a largura toda do cartão; contador embaixo. */}
         <View style={st.seletor}>
-          <View style={{ flex: 1 }}>
-            <Text style={st.valor}>{moeda(quantidade * c.valorCupom)}</Text>
-            <Text style={st.numeros}>
-              {quantidade} {quantidade === 1 ? 'número' : 'números'} da sorte
-            </Text>
+          <Text style={st.valor} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>{moeda(quantidade * c.valorCupom)}</Text>
+          <View style={st.seletorLinha}>
+            <Text style={st.numeros}>{quantidade} {quantidade === 1 ? 'número' : 'números'} da sorte</Text>
+            <Contador valor={quantidade} onChange={(v) => definir({ quantidade: v })} />
           </View>
-          <Contador valor={quantidade} onChange={(v) => definir({ quantidade: v })} />
         </View>
 
         <Pressable onPress={() => ofertar(false)} accessibilityRole="button"
@@ -384,12 +383,10 @@ const st = StyleSheet.create({
   seloTexto: { color: cores.primariaProfunda, fontWeight: '800', fontSize: 12, letterSpacing: 0.4, textTransform: 'uppercase' },
   heroTitulo: { color: '#fff', fontSize: 30, fontWeight: '900', lineHeight: 35, letterSpacing: -0.6 },
   heroSub: { color: '#EBD5E2', fontSize: 15 },
-  seletor: {
-    backgroundColor: cores.superficie, borderRadius: raio.lg, padding: espaco.md, paddingLeft: espaco.lg,
-    flexDirection: 'row', alignItems: 'center', gap: espaco.md,
-  },
-  valor: { fontSize: 28, fontWeight: '900', color: cores.primaria, letterSpacing: -0.5 },
-  numeros: { color: cores.textoSuave, fontSize: 13 },
+  seletor: { backgroundColor: cores.superficie, borderRadius: raio.lg, padding: espaco.md, paddingHorizontal: espaco.lg, gap: espaco.sm },
+  seletorLinha: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: espaco.md },
+  valor: { fontSize: 34, fontWeight: '900', color: cores.primaria, letterSpacing: -0.5 },
+  numeros: { flex: 1, color: cores.textoSuave, fontSize: 14, fontWeight: '600' },
   cta: { minHeight: 56, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: espaco.sm, borderRadius: raio.md },
   ctaTexto: { color: cores.primariaProfunda, fontSize: 17, fontWeight: '900', letterSpacing: 0.1 },
   iconeRedondo: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center' },

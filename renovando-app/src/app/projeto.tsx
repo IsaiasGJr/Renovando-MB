@@ -75,7 +75,7 @@ export default function Projeto() {
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: espaco.md }}>
         {parceiros.data?.map((p) => (
           <Pressable key={p.id} disabled={!p.site} onPress={() => Linking.openURL(p.site)}
-            style={[{ width: '30%', flexGrow: 1, aspectRatio: 1.4, backgroundColor: cores.superficie, borderRadius: raio.lg, alignItems: 'center', justifyContent: 'center', padding: espaco.sm }, sombra(1)]}>
+            style={[{ width: '30%', flexGrow: 1, height: 96, backgroundColor: cores.superficie, borderRadius: raio.lg, alignItems: 'center', justifyContent: 'center', padding: espaco.sm }, sombra(1)]}>
             {p.logoUrl ? <Imagem url={p.logoUrl} style={{ width: '90%', height: '70%' }} ajuste="contain" rotulo={p.nome} />
               : <Text style={{ textAlign: 'center', color: cores.textoSuave, fontWeight: '700', fontSize: 12 }}>{p.nome}</Text>}
           </Pressable>

@@ -182,10 +182,10 @@ export default function Relatorios() {
           keyExtractor={(o) => o.id}
           contentContainerStyle={ui.conteudo}
           ListHeaderComponent={cabecalho}
-          ListEmptyComponent={primeira ? <Vazio texto="Nenhuma oferta com esses filtros." /> : null}
+          ListEmptyComponent={primeira ? <Vazio texto="Nenhuma oferta com esses filtros." /> : undefined}
           onEndReached={() => rel.hasNextPage && !rel.isFetchingNextPage && rel.fetchNextPage()}
           onEndReachedThreshold={0.4}
-          ListFooterComponent={rel.isFetchingNextPage ? <ActivityIndicator color={cores.primaria} /> : null}
+          ListFooterComponent={rel.isFetchingNextPage ? <ActivityIndicator color={cores.primaria} /> : undefined}
           renderItem={({ item: o }) => (
             <Pressable onPress={() => router.push({ pathname: '/oferta', params: { id: o.id } })} accessibilityRole="button" accessibilityHint="Ver cupons e divisão">
             <Cartao style={{ gap: 6 }}>
@@ -208,7 +208,7 @@ export default function Relatorios() {
           keyExtractor={(l) => l.igreja + l.cidade}
           contentContainerStyle={ui.conteudo}
           ListHeaderComponent={cabecalho}
-          ListEmptyComponent={porIgreja.data ? <Vazio texto="Sem ofertas pagas no período." /> : null}
+          ListEmptyComponent={porIgreja.data ? <Vazio texto="Sem ofertas pagas no período." /> : undefined}
           renderItem={({ item: l }) => (
             <Cartao style={{ gap: 6 }}>
               <Text style={{ fontWeight: '700', color: cores.texto, fontSize: 15 }}>{l.igreja}</Text>

@@ -1,4 +1,5 @@
-import Constants, { ExecutionEnvironment } from 'expo-constants';
+import { isRunningInExpoGo } from 'expo';
+import Constants from 'expo-constants';
 import * as Device from 'expo-device';
 import { Platform } from 'react-native';
 import { BASE_URL } from '@/api';
@@ -11,21 +12,21 @@ import { useAuth } from '@/store/auth';
  * e o app não abre. Por isso o módulo é carregado só quando o app roda instalado de verdade
  * (build do EAS) e nunca na web nem no Expo Go.
  */
-export const avisosDisponiveis =
-  Platform.OS !== 'web' && Constants.executionEnvironment !== ExecutionEnvironment.StoreClient;
+export const avisosDisponiveis = Platform.OS !== 'web' && !isRunningInExpoGo();
 
 type Modulo = typeof import('expo-notifications');
-let modulo: Promise<Modulo> | null = null;
-function notificacoes(): Promise<Modulo> | null {
+let modulo: Promise<Modulo | null> | null = null;
+function notificacoes(): Promise<Modulo | null> | null {
   if (!avisosDisponiveis) return null;
   if (!modulo) {
+    // Se o módulo nativo faltar mesmo assim, o app segue sem avisos em vez de quebrar.
     modulo = import('expo-notifications').then((N) => {
       // Mostra o aviso mesmo com o app aberto.
       N.setNotificationHandler({
         handleNotification: async () => ({ shouldShowBanner: true, shouldShowList: true, shouldPlaySound: true, shouldSetBadge: false }),
       });
       return N;
-    });
+    }).catch(() => null);
   }
   return modulo;
 }
@@ -89,7 +90,7 @@ export function aoTocarNoAviso(abrir: (rota: string) => void) {
   const N = notificacoes();
   if (!N) return cancelar;
   void N.then((m) => {
-    if (!ativo) return;
+    if (!ativo || !m) return;
     const tratar = (r: { notification: { request: { content: { data?: Record<string, unknown> } } } } | null) => {
       const rota = r?.notification.request.content.data?.rota;
       // Só caminhos internos do app.

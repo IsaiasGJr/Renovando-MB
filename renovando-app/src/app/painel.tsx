@@ -46,7 +46,7 @@ export default function Painel() {
   return (
     <SafeAreaView style={ui.tela} edges={['bottom']}>
       <ScrollView contentContainerStyle={ui.conteudo}
-        refreshControl={<RefreshControl refreshing={q.isRefetching} onRefresh={q.refetch} tintColor={cores.primaria} />}>
+        refreshControl={<RefreshControl refreshing={q.isRefetching} onRefresh={() => void q.refetch()} tintColor={cores.primaria} />}>
         <Destaque selo="Meu painel" titulo="Acompanhe sua igreja e sua rede"
           texto="Os números consideram só ofertas já pagas da campanha." />
         {q.isLoading ? <Carregando /> : null}
