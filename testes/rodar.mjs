@@ -14,6 +14,7 @@ const raiz = resolve(pasta, '..');
 const dados = process.env.DADOS_DIR ?? join(raiz, 'dados');
 const banco = join(dados, 'renovando.db');
 const envAdmin = join(raiz, 'admin', 'servidor', '.env');
+const envApi = join(raiz, 'api', '.env');
 
 const saude = await fetch('http://localhost:3333/api/saude').then((r) => r.json()).catch(() => null);
 if (!saude) {
@@ -37,6 +38,7 @@ const suites = [
   ['rede', [envAdmin, banco]],
   ['perfis', [envAdmin, banco]],
   ['importacoes', [envAdmin, banco]],
+  ['seg3', [envAdmin, envApi, banco]],
 ];
 
 const inicio = new Date().toISOString();

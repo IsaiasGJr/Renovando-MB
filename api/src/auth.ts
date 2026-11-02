@@ -16,15 +16,18 @@ declare global {
   }
 }
 
+// Destino e algoritmo fixos: token de outro sistema (ex.: do painel) nunca vale aqui, mesmo com o mesmo segredo.
+const AUDIENCIA = 'renovando-app';
+
 export function assinar(t: Token, validade: jwt.SignOptions['expiresIn']) {
-  return jwt.sign(t, env.jwtSegredo, { expiresIn: validade });
+  return jwt.sign(t, env.jwtSegredo, { expiresIn: validade, audience: AUDIENCIA, algorithm: 'HS256' });
 }
 
 function lerToken(req: Request): Token | null {
   const h = req.headers.authorization;
   if (!h?.startsWith('Bearer ')) return null;
   try {
-    return jwt.verify(h.slice(7), env.jwtSegredo) as Token;
+    return jwt.verify(h.slice(7), env.jwtSegredo, { audience: AUDIENCIA, algorithms: ['HS256'] }) as Token;
   } catch {
     return null;
   }

@@ -15,6 +15,7 @@ import type { Banner, Premio } from '@/types';
 import { cores, espaco, gradienteMarca, gradienteOuro, raio, sombra, tipografia } from '@/theme';
 import { data, diasAte, moeda } from '@/utils/format';
 import { Imagem } from '@/components/Imagem';
+import { Image } from 'expo-image';
 
 type Icone = ComponentProps<typeof Ionicons>['name'];
 
@@ -25,10 +26,11 @@ const PASSOS: [Icone, string, string][] = [
   ['videocam', 'Assista ao sorteio ao vivo', 'Você recebe um aviso no app.'],
 ];
 
-const VANTAGENS: [Icone, string, string][] = [
-  ['heart', 'Ação de fé', 'Cupons de R$ 20 num movimento nacional que fortalece igrejas e projetos sociais.'],
-  ['trophy', 'Grandes prêmios', 'Além de abençoar sua comunidade, você concorre a carro, PIX e celulares.'],
-  ['earth', 'Impacto real', 'Cada oferta financia obras, eventos evangelísticos, ações sociais e a missão local.'],
+// Ilustrações 3D das vantagens, as mesmas do site (assets/vantagens).
+const VANTAGENS: [number, string, string][] = [
+  [require('../../../assets/vantagens/acao.png'), 'Ação de fé', 'Cupons de R$ 20 num movimento nacional que fortalece igrejas e projetos sociais.'],
+  [require('../../../assets/vantagens/premios.png'), 'Grandes prêmios', 'Além de abençoar sua comunidade, você concorre a carro, PIX e celulares.'],
+  [require('../../../assets/vantagens/impacto.png'), 'Impacto real', 'Cada oferta financia obras, eventos evangelísticos, ações sociais e a missão local.'],
 ];
 
 /** Abre o destino do banner: rota do app (/shows) ou site externo (https://...). */
@@ -107,6 +109,7 @@ export default function Inicio() {
   const igrejas = useQuery({ queryKey: ['igrejas', ''], queryFn: () => api.igrejas('') });
   // Carrossel: até 20 igrejas que têm logo (sem logo, o cartão ficaria vazio).
   const comLogo = useMemo(() => (igrejas.data ?? []).filter((i) => i.logoUrl).slice(0, 20), [igrejas.data]);
+  const estados = useMemo(() => new Set((igrejas.data ?? []).map((i) => i.uf)).size, [igrejas.data]);
 
   if (!campanha.data) {
     return (
@@ -247,10 +250,10 @@ export default function Inicio() {
       {/* Por que participar */}
       <Secao titulo="Por que participar?" />
       <View style={{ gap: espaco.md }}>
-        {VANTAGENS.map(([icone, titulo, texto], i) => (
-          <View key={titulo} style={[{ flexDirection: 'row', alignItems: 'center', gap: espaco.md, backgroundColor: cores.superficie, borderRadius: raio.lg, padding: espaco.lg }, sombra(1)]}>
-            <LinearGradient colors={i === 1 ? [...gradienteOuro] : [...gradienteMarca]} style={{ width: 52, height: 52, borderRadius: 16, alignItems: 'center', justifyContent: 'center' }}>
-              <Ionicons name={icone} size={24} color={i === 1 ? cores.primariaProfunda : cores.destaque} />
+        {VANTAGENS.map(([ilustracao, titulo, texto]) => (
+          <View key={titulo} style={[{ flexDirection: 'row', alignItems: 'center', gap: espaco.md, backgroundColor: cores.superficie, borderRadius: raio.lg, padding: espaco.md, paddingRight: espaco.lg }, sombra(1)]}>
+            <LinearGradient colors={[...gradienteMarca]} style={{ width: 84, height: 72, borderRadius: 16, alignItems: 'center', justifyContent: 'center' }}>
+              <Image source={ilustracao} style={{ width: 76, height: 60 }} contentFit="contain" accessible={false} />
             </LinearGradient>
             <View style={{ flex: 1, gap: 2 }}>
               <Text style={st.forte}>{titulo}</Text>
@@ -264,9 +267,13 @@ export default function Inicio() {
       {igrejas.data?.length ? (
         <>
           <Secao titulo="Igrejas envolvidas" />
-          <Text style={[st.rotuloPeq, { marginTop: -espaco.xs }]}>
-            Já são mais de {Math.floor(igrejas.data.length / 5) * 5 || igrejas.data.length} igrejas credenciadas em todo o país.
-          </Text>
+          {/* O número grande, como no site: igrejas credenciadas e em quantos estados. */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: espaco.md, marginTop: -espaco.xs }}>
+            <Text style={st.numeroGrande}>{igrejas.data.length}</Text>
+            <Text style={[st.rotuloPeq, { flex: 1, fontSize: 15 }]}>
+              igrejas credenciadas em {estados} {estados === 1 ? 'estado' : 'estados'}. Cada oferta pode fortalecer uma delas.
+            </Text>
+          </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -espaco.lg }}
             contentContainerStyle={{ gap: espaco.md, paddingHorizontal: espaco.lg, paddingVertical: 4 }}>
             {comLogo.map((i) => (
@@ -371,6 +378,7 @@ export default function Inicio() {
 }
 
 const st = StyleSheet.create({
+  numeroGrande: { fontSize: 52, fontWeight: '900', color: cores.primaria, letterSpacing: -1.5, lineHeight: 58 },
   avatar: {
     width: 42, height: 42, borderRadius: 21, backgroundColor: cores.superficie, alignItems: 'center', justifyContent: 'center',
   },

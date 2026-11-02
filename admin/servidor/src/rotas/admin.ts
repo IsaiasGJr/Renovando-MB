@@ -25,6 +25,8 @@ export const admin = Router();
 
 // ---------- Login ----------
 
+const RESUMO_FALSO = bcrypt.hashSync('senha-que-nunca-confere', 10);
+
 admin.post('/login', (req, res) => {
   const { email, senha, codigo } = validar(
     z.object({ email: z.string().trim().toLowerCase(), senha: z.string(), codigo: z.string().trim().optional() }),
@@ -37,7 +39,9 @@ admin.post('/login', (req, res) => {
     id: string; nome: string; email: string; senhaHash: string; papel: 'admin' | 'editor'; ativo: number; sessaoVersao: number;
     totpAtivo: number; totpSegredo: string; totpUltimoPasso: number;
   }>('SELECT * FROM admins WHERE lower(email) = ?', email);
-  if (!a || !a.ativo || !bcrypt.compareSync(senha, a.senhaHash)) {
+  // Sempre confere uma senha (a de verdade ou um resumo falso): o tempo de resposta não revela quais e-mails existem.
+  const senhaOk = bcrypt.compareSync(senha, a?.senhaHash ?? RESUMO_FALSO);
+  if (!a || !a.ativo || !senhaOk) {
     registrar({ admin: a ? { id: a.id, nome: a.nome } : null, acao: 'login_falhou', recurso: 'sessao', resumo: email, ip: req.ip });
     throw new ErroHttp(401, 'E-mail ou senha incorretos.');
   }

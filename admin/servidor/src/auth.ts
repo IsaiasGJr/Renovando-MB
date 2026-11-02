@@ -19,7 +19,7 @@ declare global {
 }
 
 export function assinar(t: Token) {
-  return jwt.sign(t, env.jwtSegredo, { expiresIn: '12h', audience: 'renovando-admin' });
+  return jwt.sign(t, env.jwtSegredo, { expiresIn: '12h', audience: 'renovando-admin', algorithm: 'HS256' });
 }
 
 export function exigirAdmin(req: Request, _res: Response, next: NextFunction) {
@@ -27,7 +27,7 @@ export function exigirAdmin(req: Request, _res: Response, next: NextFunction) {
   let t: Token | null = null;
   if (h?.startsWith('Bearer ')) {
     try {
-      t = jwt.verify(h.slice(7), env.jwtSegredo, { audience: 'renovando-admin' }) as Token;
+      t = jwt.verify(h.slice(7), env.jwtSegredo, { audience: 'renovando-admin', algorithms: ['HS256'] }) as Token;
     } catch {
       t = null;
     }
@@ -83,13 +83,13 @@ declare global {
   }
 }
 
-export const assinarPerfil = (t: TokenPerfil) => jwt.sign(t, env.jwtSegredo, { expiresIn: '12h', audience: 'renovando-perfil' });
+export const assinarPerfil = (t: TokenPerfil) => jwt.sign(t, env.jwtSegredo, { expiresIn: '12h', audience: 'renovando-perfil', algorithm: 'HS256' });
 
 /** Passo intermediário (depois do código do WhatsApp, antes de escolher o perfil). Vale 10 minutos. */
-export const assinarEscolha = (indice: string) => jwt.sign({ sub: indice }, env.jwtSegredo, { expiresIn: '10m', audience: 'renovando-escolha' });
+export const assinarEscolha = (indice: string) => jwt.sign({ sub: indice }, env.jwtSegredo, { expiresIn: '10m', audience: 'renovando-escolha', algorithm: 'HS256' });
 export function lerEscolha(token: string) {
   try {
-    return (jwt.verify(token, env.jwtSegredo, { audience: 'renovando-escolha' }) as { sub: string }).sub;
+    return (jwt.verify(token, env.jwtSegredo, { audience: 'renovando-escolha', algorithms: ['HS256'] }) as { sub: string }).sub;
   } catch {
     throw new ErroHttp(401, 'O tempo para escolher o perfil acabou. Peça um novo código.');
   }
@@ -100,7 +100,7 @@ export function exigirPerfil(req: Request, _res: Response, next: NextFunction) {
   let t: TokenPerfil | null = null;
   if (h?.startsWith('Bearer ')) {
     try {
-      t = jwt.verify(h.slice(7), env.jwtSegredo, { audience: 'renovando-perfil' }) as TokenPerfil;
+      t = jwt.verify(h.slice(7), env.jwtSegredo, { audience: 'renovando-perfil', algorithms: ['HS256'] }) as TokenPerfil;
     } catch {
       t = null;
     }
