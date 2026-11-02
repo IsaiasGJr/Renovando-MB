@@ -1,7 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useLocalSearchParams, router } from 'expo-router';
-import { memo, useCallback, useState } from 'react';
+import { memo, useCallback, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { api } from '@/api';
@@ -20,6 +20,13 @@ export default function Shows() {
   // Vindo da página de um artista, ele já chega marcado no pedido.
   const [escolhidos, setEscolhidos] = useState<string[]>(artista ? [artista] : []);
   const [f, setF] = useState(VAZIO);
+  const [busca, setBusca] = useState('');
+  // Busca sem acento e sem diferenciar maiúsculas, como no site ("Buscar artista").
+  const semAcento = (t: string) => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const encontrados = useMemo(
+    () => (busca.trim() ? artistas.data?.filter((a) => semAcento(a.nome).includes(semAcento(busca.trim()))) : artistas.data),
+    [artistas.data, busca],
+  );
   const set = (p: Partial<typeof f>) => setF((v) => ({ ...v, ...p }));
   const alternar = useCallback((nome: string) =>
     setEscolhidos((e) => (e.includes(nome) ? e.filter((x) => x !== nome) : [...e, nome])), []);
@@ -46,8 +53,10 @@ export default function Shows() {
 
       <Secao titulo="Artistas gospel para o seu evento" />
       <Text style={{ color: cores.textoSuave }}>Toque num artista para ver a página dele.</Text>
+      <Campo rotulo="Buscar artista" value={busca} onChangeText={setBusca} placeholder="Nome do artista ou banda" autoCorrect={false} />
       {artistas.isLoading ? <Carregando /> : null}
-      <Catalogo artistas={artistas.data} />
+      {encontrados && !encontrados.length ? <Text style={{ color: cores.textoSuave }}>Nenhum artista encontrado com esse nome.</Text> : null}
+      <Catalogo artistas={encontrados} />
 
       <Secao titulo="Quais artistas você quer?" />
       <Text style={{ color: cores.textoSuave }}>Toque para marcar um ou mais.</Text>

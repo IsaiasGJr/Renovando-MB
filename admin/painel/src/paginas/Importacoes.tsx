@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { api, baixar } from '../api';
 import { Cabecalho, Erro } from '../componentes/ui';
 
-type Tipo = 'igrejas' | 'semeadores' | 'parceiros';
+type Tipo = 'igrejas' | 'semeadores' | 'parceiros' | 'ofertas';
 type Resultado = {
   linhas: { linha: number; referencia: string; acao: 'atualizar' | 'criar' | 'ignorar' | 'erro'; detalhe: string }[];
   criar: number; atualizar: number; ignorar: number; erros: number; aplicado: boolean;
@@ -16,6 +16,8 @@ const TIPOS: { valor: Tipo; titulo: string; texto: string }[] = [
     texto: 'Uma linha por semeador. Para um N2, ponha em "codigo_n1" o código ou o WhatsApp do N1 (pode ser um N1 da mesma planilha). Entram como ativos.' },
   { valor: 'parceiros', titulo: 'Parceiros: WhatsApp e chave PIX',
     texto: 'O modelo vem com as parcerias cadastradas. O WhatsApp dá acesso ao portal do parceiro; a chave PIX é usada nos repasses.' },
+  { valor: 'ofertas', titulo: 'Ofertas da Edição 2026 (sistema antigo)',
+    texto: 'Uma linha por oferta já paga no site antigo. Entra paga, com os mesmos números da sorte, e a pessoa vê os cupons no app ao entrar com o WhatsApp. Não gera repasses (já foram feitos no sistema antigo). "id_origem" é o código da oferta lá: importar de novo não duplica.' },
 ];
 const ACAO = { atualizar: 'Atualizar', criar: 'Criar', ignorar: 'Sem mudança', erro: 'Erro' } as const;
 

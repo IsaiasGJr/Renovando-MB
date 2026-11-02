@@ -3,11 +3,12 @@
 import { readFileSync } from 'node:fs';
 import { randomBytes } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
-import { apagarIgreja, igrejaTemporaria } from './_apoio.mjs';
+import { apagarContas, apagarIgreja, igrejaTemporaria } from './_apoio.mjs';
 
 const [envAdminPath, dbPath] = process.argv.slice(2);
 const envAdmin = Object.fromEntries(readFileSync(envAdminPath, 'utf8').split('\n').filter((l) => l.includes('=') && !l.startsWith('#')).map((l) => l.trim().split(/=(.*)/s).slice(0, 2)));
 const ADM = 'http://localhost:4000/api';
+const API_APP = 'http://localhost:3333/api';
 let ok = 0, falhas = 0;
 const conferir = (n: string, c: unknown, x = '') => { c ? ok++ : falhas++; console.log(`${c ? 'OK  ' : 'FALHOU'} ${n}${x ? ` (${x})` : ''}`); };
 async function req(caminho: string, { method = 'GET', json, token }: { method?: string; json?: unknown; token?: string } = {}) {
@@ -69,6 +70,36 @@ const antesPar = db.prepare('SELECT whatsapp, whatsapp_indice, chave_pix, tipo_c
 const fp = `6363${sufixo()}`;
 const pAp = await req('/importacoes/parceiros', { method: 'POST', token: tok, json: { csv: `parceiro;whatsapp;tipo_chave_pix;chave_pix\n${nomePar};${fp};cnpj;12345678000199`, aplicar: true } });
 conferir('Parceiros: atualiza WhatsApp e PIX do parceiro existente', pAp.dados.atualizar === 1 && (db.prepare('SELECT whatsapp FROM parceiros WHERE nome = ?').get(nomePar) as any).whatsapp.startsWith('v1:'));
+
+// ---------- Ofertas da Edição 2026 (migração do sistema antigo) ----------
+const igOf = await igrejaTemporaria(db, envAdmin);
+const fOf = `6362${sufixo()}`;
+const num1 = String(900000 + Math.floor(Math.random() * 99000)), num2 = String(Number(num1) + 1);
+const origem = `T${Date.now()}`;
+const csvOf = `id_origem;data;whatsapp;nome;sobrenome;igreja;quantidade;valor;numeros;anonima
+${origem}-1;15/09/2026 19:30;${fOf};Migrada;Teste;${igOf.slug};2;40,00;${num1} ${num2};nao
+${origem}-2;16/09/2026;;;;${igOf.slug};1;20,00;;sim
+EXEMPLO-1 (apague esta linha);15/09/2026;63999990000;Maria;Silva;${igOf.slug};1;20,00;;nao`;
+const oSim = await req('/importacoes/ofertas', { method: 'POST', token: tok, json: { csv: csvOf } });
+conferir('Ofertas antigas: confere sem gravar e ignora o exemplo', oSim.dados.criar === 2 && oSim.dados.ignorar === 1 && oSim.dados.erros === 0 && !db.prepare("SELECT 1 FROM ofertas WHERE txid LIKE ?").get(`MIGR${origem}%`), JSON.stringify(oSim.dados.linhas?.map((l: any) => l.detalhe)));
+const oAp = await req('/importacoes/ofertas', { method: 'POST', token: tok, json: { csv: csvOf, aplicar: true } });
+const ofs = db.prepare("SELECT id, status, valor, anonima, origem, paga_em, usuario_id FROM ofertas WHERE txid LIKE ? ORDER BY txid").all(`MIGR${origem}%`) as any[];
+const cups = db.prepare('SELECT numero FROM cupons WHERE oferta_id = ? ORDER BY numero').all(ofs[0]?.id ?? '') as any[];
+conferir('Ofertas antigas: entram pagas, com os mesmos números da sorte e a data de lá', oAp.dados.aplicado && ofs.length === 2 && ofs.every((o) => o.status === 'paga' && o.origem === 'migracao')
+  && cups.map((c) => c.numero).join(',') === `${num1},${num2}` && ofs[0].paga_em.startsWith('2026-09-15T22:30'));
+conferir('Ofertas antigas: anônima não gera cupom e não cria conta', ofs[1].anonima === 1 && ofs[1].usuario_id === null && !(db.prepare('SELECT 1 FROM cupons WHERE oferta_id = ?').get(ofs[1].id)));
+conferir('Ofertas antigas: não geram repasses de novo', !(db.prepare(`SELECT 1 FROM lancamentos WHERE oferta_id IN (${ofs.map(() => '?').join(',')})`).get(...ofs.map((o) => o.id))));
+db.prepare('DELETE FROM limites').run();
+await fetch(`${API_APP}/auth/codigo`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ whatsapp: fOf }) });
+const vOf = await fetch(`${API_APP}/auth/verificar`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ whatsapp: fOf, codigo: '123456' }) }).then((r) => r.json());
+const meus = await fetch(`${API_APP}/me/cupons`, { headers: { Authorization: `Bearer ${vOf.token}` } }).then((r) => r.json());
+conferir('Ofertas antigas: a pessoa entra pelo WhatsApp e vê os cupons no app', meus.length === 2 && meus.some((c: any) => c.numero === num1));
+conferir('Ofertas antigas: importar de novo não duplica', (await req('/importacoes/ofertas', { method: 'POST', token: tok, json: { csv: csvOf } })).dados.ignorar === 3);
+const repetido = `id_origem;data;whatsapp;igreja;quantidade;numeros
+NOVO${origem};01/10/2026;${fOf};${igOf.slug};1;${num1}`;
+conferir('Ofertas antigas: número da sorte que já existe vira erro', /já existe/.test((await req('/importacoes/ofertas', { method: 'POST', token: tok, json: { csv: repetido } })).dados.linhas[0].detalhe));
+apagarContas(db, ofs[0].usuario_id);
+apagarIgreja(db, igOf.id);
 
 // ---------- Permissão ----------
 db.prepare('DELETE FROM limites').run();

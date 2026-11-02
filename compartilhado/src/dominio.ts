@@ -115,7 +115,7 @@ export function buscarOferta(id: string) {
   };
 }
 
-function novoNumero(campanhaId: string): string {
+export function novoNumero(campanhaId: string): string {
   for (let i = 0; i < 50; i++) {
     const n = String(randomInt(0, 1_000_000)).padStart(6, '0');
     if (!um('SELECT 1 FROM cupons WHERE campanha_id = ? AND numero = ?', campanhaId, n)) return n;

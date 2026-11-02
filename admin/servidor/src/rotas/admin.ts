@@ -949,7 +949,7 @@ admin.get('/movimentacoes', somenteAdmin, (req, res) => {
 // ---------- Importação por planilha (só administradores) ----------
 
 const tipoImportacao = (t: string) => {
-  if (t !== 'igrejas' && t !== 'semeadores' && t !== 'parceiros') throw naoEncontrado();
+  if (t !== 'igrejas' && t !== 'semeadores' && t !== 'parceiros' && t !== 'ofertas') throw naoEncontrado();
   return t as TipoImportacao;
 };
 

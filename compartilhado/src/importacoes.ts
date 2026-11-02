@@ -6,10 +6,12 @@
 import { cifrar, indice } from './cripto.ts';
 import { executar, inserir, todos, transacao, um } from './db.ts';
 import { montarCsv } from './csv.ts';
+import { campanhaAtiva, novoNumero } from './dominio.ts';
+import { regraDaIgreja } from './repasses.ts';
 import { novoId, soDigitos } from './util.ts';
 import { randomInt } from 'node:crypto';
 
-export type TipoImportacao = 'igrejas' | 'semeadores' | 'parceiros';
+export type TipoImportacao = 'igrejas' | 'semeadores' | 'parceiros' | 'ofertas';
 export type ResultadoLinha = { linha: number; referencia: string; acao: 'atualizar' | 'criar' | 'ignorar' | 'erro'; detalhe: string };
 
 const TIPOS_PIX = ['cnpj', 'cpf', 'email', 'telefone', 'aleatoria'];
@@ -37,6 +39,12 @@ export function modeloCsv(tipo: TipoImportacao) {
       { nome: 'Exemplo (apague esta linha)', sobrenome: 'Semeador N2', whatsapp: '63999990001', cpf: '00000000000', chave_pix: 'email2@exemplo.com', codigo_n1: '63999990000 (WhatsApp ou código do N1)' },
     ]);
   }
+  if (tipo === 'ofertas') {
+    return montarCsv(['id_origem', 'data', 'whatsapp', 'nome', 'sobrenome', 'igreja', 'quantidade', 'valor', 'numeros', 'anonima'], [
+      { id_origem: 'EXEMPLO-1 (apague esta linha)', data: '15/09/2026 19:30', whatsapp: '63999990000', nome: 'Maria', sobrenome: 'Silva', igreja: 'igreja-comunhao', quantidade: '3', valor: '60,00', numeros: '000123 000124 000125', anonima: 'nao' },
+      { id_origem: 'EXEMPLO-2 (apague esta linha)', data: '16/09/2026', whatsapp: '', nome: '', sobrenome: '', igreja: 'igreja-comunhao', quantidade: '1', valor: '20,00', numeros: '', anonima: 'sim' },
+    ]);
+  }
   return montarCsv(['parceiro', 'whatsapp', 'tipo_chave_pix', 'chave_pix'],
     todos<{ nome: string }>('SELECT nome FROM parceiros ORDER BY ordem, nome').map((p) => ({ parceiro: p.nome, whatsapp: '', tipo_chave_pix: '', chave_pix: '' })));
 }
@@ -47,6 +55,7 @@ export function importar(tipo: TipoImportacao, linhas: Record<string, string>[],
   const executarTudo = () => {
     if (tipo === 'igrejas') importarIgrejas(linhas, resultado, false);
     else if (tipo === 'semeadores') importarSemeadores(linhas, resultado, false);
+    else if (tipo === 'ofertas') importarOfertas(linhas, resultado, false);
     else importarParceiros(linhas, resultado, false);
   };
   const conta = (a: ResultadoLinha['acao']) => resultado.filter((r) => r.acao === a).length;
@@ -58,6 +67,7 @@ export function importar(tipo: TipoImportacao, linhas: Record<string, string>[],
   transacao(() => {
     if (tipo === 'igrejas') importarIgrejas(linhas, resultado, true);
     else if (tipo === 'semeadores') importarSemeadores(linhas, resultado, true);
+    else if (tipo === 'ofertas') importarOfertas(linhas, resultado, true);
     else importarParceiros(linhas, resultado, true);
   });
   return resumo(true);
@@ -175,5 +185,100 @@ function importarParceiros(linhas: Record<string, string>[], r: ResultadoLinha[]
       } else inserir('parceiros', { id: novoId(), nome, ativo: false, ...dados });
     }
     r.push({ linha: n, referencia: nome, acao: p ? 'atualizar' : 'criar', detalhe: [fone ? 'WhatsApp' : '', pix ? 'chave PIX' : ''].filter(Boolean).join(', ') + (p ? '' : ' (novo parceiro, fica oculto no app até ativar)') });
+  });
+}
+
+// ---------- Ofertas da Edição 2026 vindas do sistema antigo (migração) ----------
+
+/** "31/10/2026", "31/10/2026 14:30" ou "2026-10-31[T14:30...]" no horário de Brasília → ISO em UTC. */
+function lerData(v: string) {
+  const t = v.trim();
+  let m = t.match(/^(\d{2})\/(\d{2})\/(\d{4})(?:[ T](\d{2}):(\d{2}))?/);
+  if (m) return new Date(Date.UTC(+m[3], +m[2] - 1, +m[1], +(m[4] ?? 12) + 3, +(m[5] ?? 0))).toISOString();
+  m = t.match(/^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2}))?/);
+  if (m && /[zZ]|[+-]\d{2}:?\d{2}$/.test(t)) return new Date(t).toISOString();
+  if (m) return new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], +(m[4] ?? 12) + 3, +(m[5] ?? 0))).toISOString();
+  return null;
+}
+const SIM = ['sim', 's', '1', 'true', 'x', 'anonima', 'anônima'];
+
+/**
+ * Cada linha é uma oferta JÁ PAGA no sistema antigo. Entra paga, com os mesmos números da sorte (ou números
+ * novos, se a coluna vier vazia), ligada à conta do WhatsApp (criada se não existir).
+ * Não gera repasses: a divisão dessas ofertas já foi feita no sistema antigo.
+ * "id_origem" (o código da oferta no sistema antigo) impede importar a mesma oferta duas vezes.
+ */
+function importarOfertas(linhas: Record<string, string>[], r: ResultadoLinha[], aplicar: boolean) {
+  const campanha = campanhaAtiva();
+  const numerosDaPlanilha = new Set<string>();
+  const origensDaPlanilha = new Set<string>();
+  linhas.forEach((l, k) => {
+    const n = k + 2;
+    if (/apague esta linha/i.test(l.id_origem ?? '')) return void r.push({ linha: n, referencia: 'exemplo', acao: 'ignorar', detalhe: 'linha de exemplo do modelo' });
+    const origem = (l.id_origem ?? '').trim().replace(/[^\w-]/g, '').slice(0, 40);
+    const ref = origem || '(sem id_origem)';
+    const erros: string[] = [];
+    if (!origem) erros.push('coluna "id_origem" vazia (o código da oferta no sistema antigo)');
+    const txid = `MIGR${origem}`;
+    if (origem && origensDaPlanilha.has(origem)) erros.push('id_origem repetido na planilha');
+    origensDaPlanilha.add(origem);
+    if (origem && um('SELECT 1 FROM ofertas WHERE txid = ?', txid)) {
+      return void r.push({ linha: n, referencia: ref, acao: 'ignorar', detalhe: 'já importada antes' });
+    }
+    const igreja = um<{ id: string; nome: string }>('SELECT id, nome_fantasia AS nome FROM igrejas WHERE slug = ?', (l.igreja ?? l.endereco ?? '').trim());
+    if (!igreja) erros.push(`igreja não encontrada ("${l.igreja ?? ''}"): use o endereço da igreja, como na planilha de igrejas`);
+    const quantidade = Number(soDigitos(l.quantidade ?? ''));
+    if (!quantidade || quantidade > 500) erros.push('quantidade de cupons inválida (1 a 500)');
+    // "1.234,56" (Brasil) ou "1234.56"; vazio = cupons × valor do cupom.
+    const bruto = (l.valor ?? '').replace(/[^\d.,]/g, '');
+    const valor = bruto ? Number(bruto.includes(',') ? bruto.replace(/\./g, '').replace(',', '.') : bruto) : quantidade * campanha.valorCupom;
+    if (!(valor > 0)) erros.push(`valor inválido ("${l.valor}")`);
+    const pagaEm = lerData(l.data ?? '');
+    if (!pagaEm) erros.push(`data inválida ("${l.data ?? ''}"): use dd/mm/aaaa ou dd/mm/aaaa hh:mm`);
+    const anonima = SIM.includes((l.anonima ?? '').trim().toLowerCase());
+    const fone = anonima ? null : validarFone(l.whatsapp ?? '', erros);
+    if (!anonima && !fone) erros.push('informe o WhatsApp de quem ofertou (ou anonima = sim)');
+    const numeros = (l.numeros ?? '').split(/[\s,;|]+/).filter(Boolean).map((x) => soDigitos(x).padStart(6, '0'));
+    if (!anonima && numeros.length) {
+      if (numeros.length !== quantidade) erros.push(`a oferta tem ${quantidade} cupom(ns) mas a coluna "numeros" tem ${numeros.length}`);
+      for (const num of numeros) {
+        if (num.length !== 6) erros.push(`número da sorte inválido: ${num}`);
+        else if (numerosDaPlanilha.has(num)) erros.push(`número ${num} repetido na planilha`);
+        else if (um('SELECT 1 FROM cupons WHERE campanha_id = ? AND numero = ?', campanha.id, num)) erros.push(`número ${num} já existe nesta campanha`);
+        numerosDaPlanilha.add(num);
+      }
+    }
+    if (erros.length) return void r.push({ linha: n, referencia: ref, acao: 'erro', detalhe: erros.join('; ') });
+
+    if (aplicar) {
+      let usuarioId: string | null = null;
+      if (fone) {
+        const existente = um<{ id: string }>('SELECT id FROM usuarios WHERE whatsapp_indice = ? AND excluido_em IS NULL', indice(fone));
+        usuarioId = existente?.id ?? novoId();
+        if (!existente) {
+          inserir('usuarios', {
+            id: usuarioId, nome: (l.nome ?? '').trim() || 'Ofertante', sobrenome: (l.sobrenome ?? '').trim(),
+            whatsapp: cifrar(fone), whatsappIndice: indice(fone),
+          });
+        }
+      }
+      const id = novoId();
+      inserir('ofertas', {
+        id, campanhaId: campanha.id, usuarioId, igrejaId: igreja!.id, quantidade, valor: Math.round(valor * 100) / 100, anonima,
+        status: 'paga', txid, copiaECola: '', divisaoJson: JSON.stringify(regraDaIgreja(igreja!.id, campanha)),
+        expiraEm: pagaEm!, criadaEm: pagaEm!, pagaEm: pagaEm!, origem: 'migracao',
+        observacao: 'Importada do sistema antigo (Edição 2026). Repasses feitos lá.', registradaPor: 'Importação de planilha',
+      });
+      if (!anonima) {
+        const lista = numeros.length ? numeros : Array.from({ length: quantidade }, () => novoNumero(campanha.id));
+        for (const numero of lista) {
+          inserir('cupons', { id: novoId(), ofertaId: id, campanhaId: campanha.id, usuarioId, numero, criadoEm: pagaEm! });
+        }
+      }
+    }
+    r.push({
+      linha: n, referencia: ref, acao: 'criar',
+      detalhe: `${igreja!.nome} · ${quantidade} cupom(ns) · R$ ${valor.toFixed(2).replace('.', ',')}${anonima ? ' · anônima' : numeros.length ? '' : ' · números novos'}`,
+    });
   });
 }

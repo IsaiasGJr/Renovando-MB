@@ -108,7 +108,7 @@ Gera as telas do painel e sobe o servidor do admin em http://localhost:4000, ent
 - **Usuários do painel:** *Administrador* (tudo) e *Editor* (sem campanhas, sorteios e usuários).
 - **Banners do topo**, **Parcerias**, **Galeria do Palmas para Jesus**, **Páginas legais** (Privacidade e Termos) e **Mensagens** do "Fale conosco" (com anexos que só o admin baixa).
 - **Igrejas** com logo, mensagem e endereço da página (`/igreja/<endereco>`); **artistas** com biografia e galeria de fotos.
-- **Importar planilhas** (só administradores): WhatsApp dos pastores e chaves PIX das igrejas, semeadores N1/N2 e parceiros por CSV do Excel. O sistema confere linha por linha antes de gravar e planilha com erro nunca é gravada.
+- **Importar planilhas** (só administradores): WhatsApp dos pastores e chaves PIX das igrejas, semeadores N1/N2, parceiros e as **ofertas da Edição 2026 do sistema antigo** (com os mesmos números da sorte) por CSV do Excel. O sistema confere linha por linha antes de gravar e planilha com erro nunca é gravada.
 - **Painel do pastor e do semeador** (entrada pelo WhatsApp): ofertas do mês e da semana, oferta média, membros contribuintes e **Relatórios** por período com CSV.
 
 ## O que o app dos ofertantes tem
@@ -160,7 +160,7 @@ Com `npm run api` e `npm run admin` ligados (modo de desenvolvimento):
 npm test
 ```
 
-Roda 234 verificações: segurança, criptografia, exclusão de conta, envio de imagens, painéis, verificação em duas etapas,
+Roda 241 verificações: segurança, criptografia, exclusão de conta, envio de imagens, painéis, verificação em duas etapas,
 WhatsApp, avisos no celular e mais. Os testes **nunca mexem em igrejas reais** (cada um cria uma igreja temporária e apaga
 tudo no fim) e se recusam a rodar se a API não estiver em modo de desenvolvimento.
 
@@ -229,6 +229,10 @@ O painel administrativo (`admin.`) tem a mesma entrada do site: **WhatsApp → c
 | **Verificação em duas etapas no admin** | código do aplicativo autenticador (Google Authenticator etc.), em **Minha conta**. `ADMIN_2FA_OBRIGATORIO=1` obriga todos. Outro administrador desliga para quem perdeu o celular |
 | **Hospedagem** | `docker compose up -d --build`: API, admin, HTTPS automático (Caddy) e backup diário. Passo a passo em **[PUBLICAR.md](PUBLICAR.md)** |
 | **Apps nas lojas** | `eas.json` com os endereços de produção nos dois apps |
+
+## Dia da virada
+
+O roteiro para trocar o site antigo pelo sistema novo sem perder ofertas está em [VIRADA.md](VIRADA.md).
 
 ## O que ainda depende de você
 
