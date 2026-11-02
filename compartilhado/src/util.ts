@@ -50,6 +50,17 @@ export function tratarErros(err: unknown, _req: Request, res: Response, _next: N
     res.status(err.status).json({ erro: err.message });
     return;
   }
+  // Erros do próprio pedido (JSON quebrado, corpo ou arquivo grande demais): 4xx com mensagem curta, nunca "erro interno".
+  const pedido = err as { status?: number; type?: string; expose?: boolean; code?: string; name?: string };
+  if (pedido?.name === 'MulterError') {
+    res.status(pedido.code === 'LIMIT_FILE_SIZE' ? 413 : 400).json({ erro: pedido.code === 'LIMIT_FILE_SIZE' ? 'Arquivo grande demais.' : 'Envio de arquivo inválido.' });
+    return;
+  }
+  if (pedido?.expose && typeof pedido.status === 'number' && pedido.status >= 400 && pedido.status < 500) {
+    const textos: Record<string, string> = { 'entity.too.large': 'Envio grande demais.', 'entity.parse.failed': 'Dados em formato inválido.' };
+    res.status(pedido.status).json({ erro: textos[pedido.type ?? ''] ?? 'Pedido inválido.' });
+    return;
+  }
   const msg = (err as Error)?.message ?? '';
   if (msg.includes('UNIQUE constraint failed')) {
     res.status(409).json({ erro: 'Já existe um registro com esses dados.' });

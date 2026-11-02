@@ -164,7 +164,7 @@ Com `npm run api` e `npm run admin` ligados (modo de desenvolvimento):
 npm test
 ```
 
-Roda 254 verificações: segurança, criptografia, exclusão de conta, envio de imagens, painéis, verificação em duas etapas,
+Roda 295 verificações (41 delas são tentativas de ataque): segurança, criptografia, exclusão de conta, envio de imagens, painéis, verificação em duas etapas,
 WhatsApp, avisos no celular e mais. Os testes **nunca mexem em igrejas reais** (cada um cria uma igreja temporária e apaga
 tudo no fim) e se recusam a rodar se a API não estiver em modo de desenvolvimento.
 

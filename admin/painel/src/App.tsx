@@ -144,7 +144,7 @@ function Layout({ admin }: { admin: Admin }) {
         </div>
         {link('/', 'Visão geral', LayoutDashboard)}
         {link('/relatorios', 'Relatórios', BarChart3)}
-        {link('/ofertantes', 'Ofertantes', Users)}
+        {ehAdmin ? link('/ofertantes', 'Ofertantes', Users) : null}
         {ehAdmin ? link('/repasses', 'Repasses', Wallet) : null}
         <div className="grupo">Campanha</div>
         {ehAdmin ? link('/campanhas', 'Campanhas', Flag) : null}

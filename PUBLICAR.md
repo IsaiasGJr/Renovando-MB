@@ -31,6 +31,22 @@ adduser renovando && usermod -aG docker renovando
 ufw allow OpenSSH && ufw allow 80 && ufw allow 443/tcp && ufw allow 443/udp && ufw enable
 ```
 
+Proteção do servidor (faça antes de colocar dados reais):
+
+```bash
+# 1. Entrar só com chave SSH (no SEU computador: ssh-keygen e ssh-copy-id renovando@IP-DO-SERVIDOR)
+#    Depois de testar que a chave funciona, no servidor:
+sed -i 's/^#\?PasswordAuthentication.*/PasswordAuthentication no/; s/^#\?PermitRootLogin.*/PermitRootLogin no/' /etc/ssh/sshd_config
+systemctl restart ssh
+# 2. Atualizações de segurança automáticas
+apt-get install -y unattended-upgrades && dpkg-reconfigure -f noninteractive unattended-upgrades
+# 3. Bloqueio automático de quem tenta adivinhar a senha do SSH
+apt-get install -y fail2ban && systemctl enable --now fail2ban
+```
+
+Só o Caddy (portas 80 e 443) fica exposto. A API e o admin ficam na rede interna do Docker:
+**não acrescente `ports:` neles** no `docker-compose.yml` (o Docker passa por cima do firewall `ufw`).
+
 Entre como `renovando` e copie o projeto (pelo GitHub privado ou `scp`):
 
 ```bash

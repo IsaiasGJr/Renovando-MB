@@ -809,6 +809,17 @@ admin.post('/aprovacoes/:tipo/:id', (req, res) => {
 
 // ---------- Ofertas: detalhe, cupons e registro manual ----------
 
+/**
+ * WhatsApp de ofertante: o administrador vê completo; o editor (que cuida do conteúdo) só os últimos dígitos.
+ * Dado pessoal só para quem precisa dele (LGPD).
+ */
+function foneParaQuemVe(req: Request, cifrado: unknown) {
+  const fone = decifrar(cifrado as string);
+  if (req.admin?.papel === 'admin' || !fone) return fone;
+  const d = fone.replace(/\D/g, '');
+  return d.length >= 10 ? `(${d.slice(0, 2)}) ${d.slice(2, 3)}••••-${d.slice(-4)}` : '••••';
+}
+
 admin.get('/ofertas/:id', (req, res) => {
   const o = um<Record<string, unknown>>(
     `SELECT o.*, i.nome_fantasia AS igreja, i.cidade || '/' || i.uf AS cidade, c.edicao AS campanha,
@@ -823,7 +834,7 @@ admin.get('/ofertas/:id', (req, res) => {
     id: o.id, criadaEm: o.criadaEm, pagaEm: o.pagaEm, status: o.status, quantidade: o.quantidade, valor: o.valor, anonima,
     origem: o.origem, observacao: o.observacao, registradaPor: o.registradaPor, igreja: o.igreja, cidade: o.cidade, campanha: o.campanha,
     ofertante: anonima ? 'Anônimo' : o.ofertanteExcluido ? 'Conta excluída' : `${o.ofertanteNome ?? ''} ${o.ofertanteSobrenome ?? ''}`.trim(),
-    whatsapp: anonima || o.ofertanteExcluido ? '' : decifrar(o.ofertanteWhatsapp),
+    whatsapp: anonima || o.ofertanteExcluido ? '' : foneParaQuemVe(req, o.ofertanteWhatsapp),
     cupons: todos('SELECT numero, criado_em FROM cupons WHERE oferta_id = ? ORDER BY numero', String(o.id)),
     divisao: todos(
       `SELECT l.papel, l.percentual, l.valor, l.status, l.beneficiario_tipo,
@@ -1167,14 +1178,14 @@ admin.get('/relatorios/ofertas', (req, res) => {
     pagina,
     porPagina: 50,
     ofertas: todos<Record<string, unknown>>(`${SQL_LISTA_OFERTAS} ${where} ORDER BY o.criada_em DESC LIMIT 50 OFFSET ?`, ...params, (pagina - 1) * 50)
-      .map((l) => ({ ...l, whatsapp: decifrar(l.whatsapp) })),
+      .map((l) => ({ ...l, whatsapp: foneParaQuemVe(req, l.whatsapp) })),
   });
 });
 
 admin.get('/relatorios/ofertas.csv', (req, res) => {
   const { where, params } = whereOfertas(lerFiltro(req));
   const linhas = todos<Record<string, unknown>>(`${SQL_LISTA_OFERTAS} ${where} ORDER BY o.criada_em DESC`, ...params)
-    .map((l): Record<string, unknown> => ({ ...l, whatsapp: decifrar(l.whatsapp) }));
+    .map((l): Record<string, unknown> => ({ ...l, whatsapp: foneParaQuemVe(req, l.whatsapp) }));
   const colunas = ['criadaEm', 'pagaEm', 'status', 'campanha', 'igreja', 'cidade', 'ofertante', 'whatsapp', 'quantidade', 'valor'];
   // celulaCsv neutraliza fórmulas (=, +, -, @) que o Excel executaria ao abrir a planilha.
   const csv = [colunas.join(';'), ...linhas.map((l) => colunas.map((c) => celulaCsv(l[c])).join(';'))].join('\n');
@@ -1214,7 +1225,8 @@ admin.get('/relatorios/igrejas', (req, res) => {
   res.json([...mapa.values()].sort((a, b) => b.arrecadado - a.arrecadado));
 });
 
-admin.get('/usuarios', (req, res) => {
+// Lista de ofertantes com WhatsApp: só administradores.
+admin.get('/usuarios', somenteAdmin, (req, res) => {
   const busca = query(req, 'busca') ?? '';
   const fone = soDigitos(busca);
   // O WhatsApp é cifrado: busca por nome, ou pelo número COMPLETO (comparando o índice).

@@ -47,7 +47,7 @@ export default function Cadastros() {
         <ItemMenu icone="checkmark-done-outline" texto="Aprovações" contador={(p?.igrejas ?? 0) + (p?.semeadores ?? 0)} onPress={() => router.push('/aprovacoes' as Href)} />
         {item('igrejas')}
         {item('semeadores')}
-        <ItemMenu icone="person-outline" texto="Ofertantes" onPress={() => router.push('/ofertantes')} />
+        {ehAdmin ? <ItemMenu icone="person-outline" texto="Ofertantes" onPress={() => router.push('/ofertantes')} /> : null}
       </Grupo>
 
       <Grupo titulo="Conteúdo do app">
