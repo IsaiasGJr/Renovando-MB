@@ -51,7 +51,8 @@ export async function criarOferta(p: { usuarioId?: string; igrejaId: string; qua
   if (!igreja || igreja.status !== 'ativa') throw new ErroHttp(400, 'Igreja não encontrada ou ainda não aprovada.');
 
   const id = novoId();
-  const txid = id.replace(/-/g, '').slice(0, 25);
+  // 32 letras/números: o padrão do PIX (Banco Central) pede de 26 a 35.
+  const txid = id.replace(/-/g, '');
   const valor = Math.round(p.quantidade * campanha.valorCupom * 100) / 100;
   // A cobrança é criada no gateway ANTES de gravar: se o gateway falhar, nenhuma oferta fica pela metade.
   const cobranca = await provedorPix().criarCobranca({

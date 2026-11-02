@@ -88,12 +88,47 @@ Os dados ficam em `./dados` (banco, imagens e anexos). Para levar o conteúdo qu
 
 ## 7. Pagamento PIX
 
-Escolha o gateway e envie as **chaves de teste (sandbox)** para a integração.
-Tudo de pagamento fica em `compartilhado/src/pagamentos.ts`: é só criar o provedor do gateway escolhido
-(criar a cobrança e ler o aviso de pagamento). Até lá, `PIX_PROVEDOR=desligado` mantém as ofertas fechadas
+Até configurar um gateway, `PIX_PROVEDOR=desligado` mantém as ofertas fechadas
 (o app mostra "As ofertas pelo app ainda não estão abertas").
 
-No gateway, configure o aviso de pagamento (webhook) para: `https://api.renovandoavinhadosenhor.com/api/webhooks/pix`.
+### Qual gateway
+
+| Gateway | Pede dados de quem paga? | Encaixe neste sistema |
+|---|---|---|
+| **Efí** (antiga Gerencianet) | **Não**: o PIX sai só com valor e chave | **Pronto no sistema** (`PIX_PROVEDOR=efi`). Combina com oferta anônima e cadastro só por WhatsApp |
+| Mercado Pago | E-mail do pagador | Precisaria pedir e-mail no app |
+| Asaas | Cliente com CPF/CNPJ | Precisaria pedir CPF de todo ofertante |
+| Pagar.me | Cliente com CPF/CNPJ | Precisaria pedir CPF de todo ofertante |
+
+Se escolher outro, a integração é um arquivo novo no padrão de `compartilhado/src/pix-efi.ts`.
+
+### Efí (pronto)
+
+1. Abra a conta PJ na Efí e, no painel, crie uma **aplicação** com os escopos da API Pix
+   (`cob.write`, `cob.read`, `webhook.write`, `webhook.read`).
+2. Baixe o **certificado** (.p12) de **homologação** (testes) e, depois, o de **produção**.
+   Copie para o servidor, por exemplo `api/certificados/efi.p12` (a pasta não vai para o GitHub).
+3. Cadastre uma **chave PIX** na conta (de preferência a aleatória).
+4. No `api/.env`:
+   ```
+   PIX_PROVEDOR=efi
+   EFI_CLIENT_ID=...
+   EFI_CLIENT_SECRET=...
+   EFI_CERTIFICADO=/app/api/certificados/efi.p12
+   EFI_CHAVE_PIX=...
+   EFI_HOMOLOGACAO=1        # tire esta linha ao passar para produção
+   ```
+5. `docker compose up -d` e cadastre o aviso de pagamento (uma vez por ambiente):
+   ```bash
+   docker compose exec api npm run efi-webhook -w renovando-api
+   ```
+6. Teste: no ambiente de homologação da Efí, cobranças **até R$ 10,00** são pagas sozinhas
+   (para testar, use um cupom de R$ 10 numa campanha de teste). O cupom deve aparecer no app.
+7. Produção: troque as credenciais e o certificado pelos de produção, tire `EFI_HOMOLOGACAO`,
+   rode o passo 5 de novo e faça uma oferta real de R$ 20.
+
+Segurança: o aviso de pagamento leva o `WEBHOOK_SEGREDO` no endereço e, mesmo assim, o sistema
+**consulta a cobrança na Efí** e só libera os cupons se ela estiver paga. Um aviso falso não libera nada.
 
 ## 8. Backup
 

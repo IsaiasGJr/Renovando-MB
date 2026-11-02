@@ -61,6 +61,11 @@ export default function Premios() {
           );
         })
       )}
+      {/* Exigência das lojas para apps com sorteio (App Store 5.3 / Google Play). */}
+      <Text style={{ color: cores.textoSuave, fontSize: 12, lineHeight: 17, textAlign: 'center' }}>
+        Os sorteios são promovidos pelo projeto Renovando a Vinha do Senhor. A Apple e o Google não patrocinam,
+        não organizam e não têm nenhuma responsabilidade sobre esta campanha ou seus prêmios.
+      </Text>
     </Tela>
   );
 }

@@ -39,6 +39,7 @@ const suites = [
   ['perfis', [envAdmin, banco]],
   ['importacoes', [envAdmin, banco]],
   ['seg3', [envAdmin, envApi, banco]],
+  ['pix-efi', []],
 ];
 
 const inicio = new Date().toISOString();

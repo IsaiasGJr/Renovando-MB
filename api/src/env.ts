@@ -1,4 +1,5 @@
 import { existsSync } from 'node:fs';
+import { conferirConfigEfi } from '../../compartilhado/src/pix-efi.ts';
 
 if (existsSync('.env')) process.loadEnvFile('.env');
 
@@ -24,4 +25,5 @@ if (!env.dev && env.webhookSegredo.length < 24) {
 if (!env.dev && !(process.env.WHATSAPP_TOKEN && process.env.WHATSAPP_NUMERO_ID)) {
   console.warn('⚠ WHATSAPP_TOKEN/WHATSAPP_NUMERO_ID não configurados: ninguém consegue entrar no app (o código não é enviado).');
 }
+if (process.env.PIX_PROVEDOR === 'efi') conferirConfigEfi();
 if (env.dev) console.warn('⚠ API em MODO DE TESTE: código de login 123456 e pagamento simulado. Nunca use assim em produção.');

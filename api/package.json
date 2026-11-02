@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "start": "tsx src/server.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "efi-webhook": "tsx src/efi-webhook.ts"
   },
   "license": "UNLICENSED",
   "type": "module",

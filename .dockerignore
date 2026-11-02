@@ -12,3 +12,7 @@ admin/painel/dist
 testes
 *.md
 !README.md
+**/certificados
+*.p12
+*.pfx
+*.pem

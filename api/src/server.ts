@@ -68,6 +68,35 @@ app.get('/excluir-conta', (_req, res) => {
   res.setHeader('Cache-Control', 'no-cache');
   res.sendFile('excluir-conta.html', { root: paginas });
 });
+// Política de Privacidade e Termos em endereço público (as lojas exigem um link).
+// Mesmo texto que o admin edita em Páginas legais. "## título" vira título e "- item" vira lista; tudo escapado.
+function paginaLegal(slug: string) {
+  const p = um<{ titulo: string; conteudo: string; atualizadoEm: string | null }>('SELECT titulo, conteudo, atualizado_em FROM paginas WHERE slug = ?', slug);
+  if (!p) return null;
+  const corpo = p.conteudo.trim().split(/\n\s*\n/).map((bloco) => {
+    const b = bloco.trim();
+    if (b.startsWith('## ')) return `<h2>${esc(b.slice(3))}</h2>`;
+    const linhas = b.split('\n');
+    if (linhas.every((l) => /^\s*[-•]\s+/.test(l))) return `<ul>${linhas.map((l) => `<li>${esc(l.replace(/^\s*[-•]\s+/, ''))}</li>`).join('')}</ul>`;
+    return `<p>${linhas.map(esc).join('<br>')}</p>`;
+  }).join('\n');
+  return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${esc(p.titulo)} · Renovando a Vinha do Senhor</title>
+<style>body{margin:0;font:16px/1.6 system-ui,sans-serif;background:#F7F3F5;color:#1F1A1D}header{background:linear-gradient(135deg,#7E276A,#5C0047);color:#fff;padding:28px 20px}
+main{max-width:760px;margin:0 auto;padding:24px 20px}header main{padding:0}h1{margin:0;font-size:28px}h2{font-size:19px;margin:28px 0 8px;color:#5C0047}p,li{color:#3B3540}
+footer{max-width:760px;margin:0 auto;padding:8px 20px 40px;color:#7A7180;font-size:14px}</style></head>
+<body><header><main><h1>${esc(p.titulo)}</h1></main></header><main>${corpo}</main>
+<footer>Renovando a Vinha do Senhor · contato@renovandoavinhadosenhor.com · <a href="/excluir-conta">Excluir minha conta</a></footer></body></html>`;
+}
+for (const [rotas, slug] of [[['/privacidade', '/politica-de-privacidade'], 'privacidade'], [['/termos', '/termos-de-uso'], 'termos']] as const) {
+  app.get([...rotas], (_req, res) => {
+    const html = paginaLegal(slug);
+    res.setHeader('Content-Security-Policy', cspLink);
+    res.setHeader('Cache-Control', 'public, max-age=300');
+    if (!html) return void res.status(404).send('Página não encontrada.');
+    res.send(html);
+  });
+}
 app.get('/excluir-conta.js', (_req, res) => {
   res.setHeader('Cache-Control', 'no-cache');
   res.sendFile('excluir-conta.js', { root: paginas });

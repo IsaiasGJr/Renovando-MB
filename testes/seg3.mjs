@@ -56,6 +56,13 @@ for (let i = 0; i < 3; i++) {
 const [te, tn] = [mediana(existe), mediana(naoExiste)];
 conferir('SEGURANÇA: login com e-mail inexistente demora o mesmo que com e-mail real', tn > te * 0.5, `${tn.toFixed(0)} ms x ${te.toFixed(0)} ms`);
 
+// ---------- Páginas públicas de Privacidade e Termos (exigidas pelas lojas) ----------
+for (const caminho of ['/privacidade', '/termos', '/politica-de-privacidade', '/termos-de-uso']) {
+  const r = await fetch(`http://localhost:3333${caminho}`);
+  const html = await r.text();
+  conferir(`Página pública ${caminho}: abre sem script e com CSP`, r.status === 200 && /<h2>/.test(html) && !/<script/i.test(html) && /default-src 'none'/.test(r.headers.get('content-security-policy') ?? ''));
+}
+
 // ---------- limpeza ----------
 apagarContas(db, login.usuario.id);
 db.prepare("DELETE FROM auditoria WHERE acao = 'login_falhou' AND criado_em > datetime('now', '-1 hour')").run();

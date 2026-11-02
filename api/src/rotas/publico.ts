@@ -401,9 +401,15 @@ publico.delete('/me', exigirUsuario, (req, res) => {
 });
 
 // Aviso do gateway de pagamento: confere a assinatura e confirma o PIX (pode chegar repetido).
-publico.post('/webhooks/pix', (req, res) => {
-  const pago = provedorPix().lerWebhook(req);
-  if (pago) confirmarPagamento(pago.idNoGateway ? { idNoGateway: pago.idNoGateway } : { txid: pago.txid });
+publico.post('/webhooks/pix', limitePorIp('webhook', 300, 15 * MIN), async (req, res) => {
+  for (const pago of await provedorPix().lerWebhook(req)) {
+    // Cobrança que não é nossa (ou já apagada) não derruba o aviso inteiro: o gateway reenviaria sem parar.
+    try {
+      confirmarPagamento(pago.idNoGateway ? { idNoGateway: pago.idNoGateway } : { txid: pago.txid });
+    } catch (e) {
+      console.warn('[pix] aviso de cobrança desconhecida', pago, (e as Error).message);
+    }
+  }
   res.json({ ok: true });
 });
 

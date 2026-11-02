@@ -7,6 +7,11 @@ admin/painel/dist
 .env
 .env.*
 !.env.exemplo
+# Certificados (PIX da Efí etc.)
+*.p12
+*.pfx
+*.pem
+api/certificados/
 
 # Dados reais (banco, imagens enviadas, anexos, backups): ficam só no servidor e nos backups
 dados/*

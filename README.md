@@ -164,7 +164,7 @@ Com `npm run api` e `npm run admin` ligados (modo de desenvolvimento):
 npm test
 ```
 
-Roda 241 verificações: segurança, criptografia, exclusão de conta, envio de imagens, painéis, verificação em duas etapas,
+Roda 254 verificações: segurança, criptografia, exclusão de conta, envio de imagens, painéis, verificação em duas etapas,
 WhatsApp, avisos no celular e mais. Os testes **nunca mexem em igrejas reais** (cada um cria uma igreja temporária e apaga
 tudo no fim) e se recusam a rodar se a API não estiver em modo de desenvolvimento.
 
@@ -237,10 +237,11 @@ O painel administrativo (`admin.`) tem a mesma entrada do site: **WhatsApp → c
 ## Dia da virada
 
 O roteiro para trocar o site antigo pelo sistema novo sem perder ofertas está em [VIRADA.md](VIRADA.md).
+As respostas para os formulários das lojas (dados coletados, privacidade, sorteio) estão em [LOJAS.md](LOJAS.md).
 
 ## O que ainda depende de você
 
-1. **Gateway PIX:** escolher (Asaas, Efí, Mercado Pago ou Pagar.me) e mandar as chaves de teste para integrar.
+1. **Gateway PIX:** a **Efí já está integrada** (só configurar, PUBLICAR.md seção 7). Outro gateway: mandar as chaves de teste.
 2. **WhatsApp:** conta Meta Business, número e modelo `codigo_login` aprovado (ver PUBLICAR.md).
 3. **Jurídico:** autorização do sorteio, regulamento, revisão dos Termos e da Política de Privacidade (falta pôr o telefone e o endereço reais de contato).
 4. **Lojas:** Google Play e Apple exigem regras próprias para apps com sorteio pago; decidir com o advogado se a oferta fica no app ou só no site.

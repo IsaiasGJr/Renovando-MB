@@ -13,6 +13,8 @@ services:
       TRUST_PROXY: "1"
     volumes:
       - ./dados:/app/dados
+      # Certificado do PIX (Efí): fica no servidor, fora da imagem e do GitHub.
+      - ./api/certificados:/app/api/certificados:ro
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:3333/api/saude').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
