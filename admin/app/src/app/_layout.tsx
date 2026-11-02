@@ -4,12 +4,13 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { Bloqueio } from '@/components/Bloqueio';
 import { useSessao } from '@/store/sessao';
 import { cores } from '@/theme';
 
 export default function RootLayout() {
   const [queryClient] = useState(() => new QueryClient({ defaultOptions: { queries: { retry: 1, staleTime: 15_000 } } }));
-  const { carregado, token, carregar } = useSessao();
+  const { carregado, token, carregar, sessaoRestaurada } = useSessao();
 
   useEffect(() => {
     carregar();
@@ -29,39 +30,43 @@ export default function RootLayout() {
   }
 
   const logado = !!token;
+  const pilhaDeTelas = (
+    <Stack
+      screenOptions={{
+        headerTintColor: cores.primaria,
+        headerTitleStyle: { color: cores.texto },
+        headerBackButtonDisplayMode: 'minimal',
+        contentStyle: { backgroundColor: cores.fundo },
+      }}
+    >
+      <Stack.Protected guard={!logado}>
+        <Stack.Screen name="login" options={{ headerShown: false }} />
+      </Stack.Protected>
+      <Stack.Protected guard={logado}>
+        <Stack.Screen name="(abas)" options={{ headerShown: false }} />
+        <Stack.Screen name="[recurso]/index" options={{ title: '' }} />
+        <Stack.Screen name="[recurso]/editar" options={{ title: '', presentation: 'modal' }} />
+        <Stack.Screen name="campanhas/index" options={{ title: 'Campanhas' }} />
+        <Stack.Screen name="campanhas/editar" options={{ title: 'Campanha', presentation: 'modal' }} />
+        <Stack.Screen name="sorteio" options={{ title: 'Sorteio', presentation: 'modal' }} />
+        <Stack.Screen name="ofertantes" options={{ title: 'Ofertantes' }} />
+        <Stack.Screen name="auditoria" options={{ title: 'Registro de atividades' }} />
+        <Stack.Screen name="avisos" options={{ title: 'Avisos no celular' }} />
+        <Stack.Screen name="aprovacoes" options={{ title: 'Aprovações' }} />
+        <Stack.Screen name="repasses" options={{ title: 'Repasses' }} />
+        <Stack.Screen name="repasse" options={{ title: 'Repasse' }} />
+        <Stack.Screen name="oferta" options={{ title: 'Oferta' }} />
+        <Stack.Screen name="registrar-oferta" options={{ title: 'Registrar oferta', presentation: 'modal' }} />
+        <Stack.Screen name="ajuda" options={{ title: 'Central de ajuda' }} />
+      </Stack.Protected>
+    </Stack>
+  );
   return (
     <SafeAreaProvider>
       <QueryClientProvider client={queryClient}>
         <StatusBar style={logado ? 'dark' : 'light'} />
-        <Stack
-          screenOptions={{
-            headerTintColor: cores.primaria,
-            headerTitleStyle: { color: cores.texto },
-            headerBackButtonDisplayMode: 'minimal',
-            contentStyle: { backgroundColor: cores.fundo },
-          }}
-        >
-          <Stack.Protected guard={!logado}>
-            <Stack.Screen name="login" options={{ headerShown: false }} />
-          </Stack.Protected>
-          <Stack.Protected guard={logado}>
-            <Stack.Screen name="(abas)" options={{ headerShown: false }} />
-            <Stack.Screen name="[recurso]/index" options={{ title: '' }} />
-            <Stack.Screen name="[recurso]/editar" options={{ title: '', presentation: 'modal' }} />
-            <Stack.Screen name="campanhas/index" options={{ title: 'Campanhas' }} />
-            <Stack.Screen name="campanhas/editar" options={{ title: 'Campanha', presentation: 'modal' }} />
-            <Stack.Screen name="sorteio" options={{ title: 'Sorteio', presentation: 'modal' }} />
-            <Stack.Screen name="ofertantes" options={{ title: 'Ofertantes' }} />
-            <Stack.Screen name="auditoria" options={{ title: 'Registro de atividades' }} />
-            <Stack.Screen name="avisos" options={{ title: 'Avisos no celular' }} />
-            <Stack.Screen name="aprovacoes" options={{ title: 'Aprovações' }} />
-            <Stack.Screen name="repasses" options={{ title: 'Repasses' }} />
-            <Stack.Screen name="repasse" options={{ title: 'Repasse' }} />
-            <Stack.Screen name="oferta" options={{ title: 'Oferta' }} />
-            <Stack.Screen name="registrar-oferta" options={{ title: 'Registrar oferta', presentation: 'modal' }} />
-            <Stack.Screen name="ajuda" options={{ title: 'Central de ajuda' }} />
-          </Stack.Protected>
-        </Stack>
+        {/* Logado: o painel fica atrás do bloqueio por digital/rosto/senha do celular. */}
+        {logado ? <Bloqueio pedirAoAbrir={sessaoRestaurada}>{pilhaDeTelas}</Bloqueio> : pilhaDeTelas}
       </QueryClientProvider>
     </SafeAreaProvider>
   );

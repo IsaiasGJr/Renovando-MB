@@ -138,6 +138,10 @@ Gera as telas do painel e sobe o servidor do admin em http://localhost:4000, ent
 | **Exclusão de conta** pelo próprio ofertante (Mais → Excluir minha conta): apaga nome, sobrenome e WhatsApp; ofertas pagas ficam sem identificação; cupons saem dos sorteios futuros | app + API (`DELETE /api/me`) |
 | **Página web de exclusão** (sem o app): WhatsApp → código → digitar EXCLUIR. Nunca cria conta e responde igual exista ou não a conta | `https://SEU-DOMINIO-DA-API/excluir-conta` (link para o Google Play) |
 | Modo de teste (código 123456, simular pagamento) **só** com `NODE_ENV=development` explícito; sem isso o servidor exige segredos fortes | os dois `.env` |
+| **App admin bloqueado** por digital, rosto ou senha do celular ao abrir e ao voltar depois de 2 minutos fora; a tela fica coberta na lista de apps recentes | app admin (`src/components/Bloqueio.tsx`) |
+| Login guardado no cofre do celular (Keychain/Keystore), fora do backup do Android | os dois apps |
+| App publicado **só conversa por https** (sem o endereço configurado, usa o oficial em https) | os dois apps |
+| Tokens com destino e algoritmo fixos: o token de um sistema não vale no outro, mesmo com o mesmo segredo | os dois servidores |
 
 ## Desempenho
 

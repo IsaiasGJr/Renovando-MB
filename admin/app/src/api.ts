@@ -5,6 +5,9 @@ import { Platform } from 'react-native';
 import { useSessao } from '@/store/sessao';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 
+// No app publicado só vale endereço https: sem ele, login e dados passariam abertos pela rede.
+const PADRAO_PRODUCAO = 'https://admin.renovandoavinhadosenhor.com';
+
 /**
  * Endereço do SERVIDOR DO ADMIN (admin/servidor), separado da API do app:
  * 1. EXPO_PUBLIC_ADMIN_URL, se definido (produção, ex.: https://admin.seudominio.com);
@@ -12,7 +15,9 @@ import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
  * 3. localhost.
  */
 function descobrirBase() {
-  if (process.env.EXPO_PUBLIC_ADMIN_URL) return process.env.EXPO_PUBLIC_ADMIN_URL.replace(/\/$/, '');
+  const configurado = process.env.EXPO_PUBLIC_ADMIN_URL?.replace(/\/$/, '');
+  if (!__DEV__) return configurado?.startsWith('https://') ? configurado : PADRAO_PRODUCAO;
+  if (configurado) return configurado;
   if (Platform.OS === 'web' && typeof location !== 'undefined') return `${location.protocol}//${location.hostname}:4000`;
   const host = Constants.expoConfig?.hostUri?.split(':')[0];
   return `http://${host ?? 'localhost'}:4000`;

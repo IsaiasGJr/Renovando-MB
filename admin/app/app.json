@@ -28,7 +28,18 @@
     },
     "plugins": [
       "expo-router",
-      "expo-secure-store",
+      [
+        "expo-secure-store",
+        {
+          "faceIDPermission": false
+        }
+      ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "O Renovando Admin usa o Face ID para proteger os dados do painel."
+        }
+      ],
       "expo-font",
       "expo-sharing",
       [

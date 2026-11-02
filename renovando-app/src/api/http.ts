@@ -4,6 +4,9 @@ import { useAuth } from '@/store/auth';
 import type { Anexo } from '@/types';
 import type { Api } from './contrato';
 
+// No app publicado só vale endereço https: sem ele, login e dados passariam abertos pela rede.
+const PADRAO_PRODUCAO = 'https://api.renovandoavinhadosenhor.com';
+
 /**
  * Endereço da API:
  * 1. EXPO_PUBLIC_API_URL, se definido (produção);
@@ -12,7 +15,9 @@ import type { Api } from './contrato';
  * 3. localhost como último recurso.
  */
 function descobrirBase() {
-  if (process.env.EXPO_PUBLIC_API_URL) return process.env.EXPO_PUBLIC_API_URL.replace(/\/$/, '');
+  const configurado = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '');
+  if (!__DEV__) return configurado?.startsWith('https://') ? configurado : PADRAO_PRODUCAO;
+  if (configurado) return configurado;
   if (Platform.OS === 'web' && typeof location !== 'undefined') return `${location.protocol}//${location.hostname}:3333`;
   const host = Constants.expoConfig?.hostUri?.split(':')[0];
   return `http://${host ?? 'localhost'}:3333`;

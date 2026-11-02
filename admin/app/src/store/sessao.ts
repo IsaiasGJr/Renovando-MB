@@ -21,6 +21,8 @@ type Estado = {
   carregado: boolean;
   token: string | null;
   admin: Admin | null;
+  /** A sessão veio salva de antes (ao abrir o app), e não de um login agora: aí o app pede a digital. */
+  sessaoRestaurada: boolean;
   carregar(): Promise<void>;
   entrar(d: Dados): Promise<void>;
   sair(): Promise<void>;
@@ -30,13 +32,14 @@ export const useSessao = create<Estado>((set) => ({
   carregado: false,
   token: null,
   admin: null,
+  sessaoRestaurada: false,
 
   async carregar() {
     try {
       const bruto = await guardar.get(CHAVE);
       if (bruto) {
         const d: Dados = JSON.parse(bruto);
-        set({ token: d.token, admin: d.admin });
+        set({ token: d.token, admin: d.admin, sessaoRestaurada: true });
       }
     } catch {
       // sessão inválida: segue deslogado
@@ -46,7 +49,7 @@ export const useSessao = create<Estado>((set) => ({
   },
 
   async entrar(d) {
-    set({ token: d.token, admin: d.admin });
+    set({ token: d.token, admin: d.admin, sessaoRestaurada: false });
     try {
       await guardar.set(CHAVE, JSON.stringify(d));
     } catch {}
