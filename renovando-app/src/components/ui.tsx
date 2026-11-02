@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
 import { cores, espaco, raio, sombra, tipografia } from '@/theme';
+import { moeda } from '@/utils/format';
 
 export function Tela({
   children,
@@ -154,6 +155,24 @@ export function Contador({
   );
 }
 
+/** Atalhos de valor, como no site: 1, 3, 5 e 10 cupons (R$ 20, 60, 100 e 200 com o cupom de R$ 20). */
+export function ValoresRapidos({ quantidade, valorCupom, onChange }: { quantidade: number; valorCupom: number; onChange: (v: number) => void }) {
+  return (
+    <View style={{ flexDirection: 'row', gap: espaco.sm }}>
+      {[1, 3, 5, 10].map((q) => {
+        const ativo = q === quantidade;
+        return (
+          <Pressable key={q} onPress={() => onChange(q)} accessibilityRole="button" accessibilityState={{ selected: ativo }}
+            accessibilityLabel={`Ofertar ${moeda(q * valorCupom)}`}
+            style={[s.atalho, ativo && { backgroundColor: cores.primaria, borderColor: cores.primaria }]}>
+            <Text style={[s.atalhoTexto, ativo && { color: '#fff' }]} numberOfLines={1}>{moeda(q * valorCupom)}</Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
 export function Aviso({ children, tipo = 'aviso' }: { children: ReactNode; tipo?: 'aviso' | 'sucesso' }) {
   const fundo = tipo === 'sucesso' ? cores.sucessoClaro : cores.avisoClaro;
   const cor = tipo === 'sucesso' ? cores.sucesso : cores.aviso;
@@ -229,6 +248,11 @@ export const s = StyleSheet.create({
     width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: cores.superficie,
   },
   contadorValor: { minWidth: 44, textAlign: 'center', fontSize: 20, fontWeight: '700', color: cores.texto },
+  atalho: {
+    flex: 1, minHeight: 40, borderRadius: raio.pill, borderWidth: 1, borderColor: cores.borda,
+    backgroundColor: cores.superficie, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4,
+  },
+  atalhoTexto: { fontSize: 14, fontWeight: '700', color: cores.primaria },
   aviso: {
     flexDirection: 'row',
     gap: espaco.sm,

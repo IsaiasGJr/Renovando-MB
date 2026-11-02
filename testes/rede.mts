@@ -37,7 +37,12 @@ const criados = { semeadores: [] as string[], usuarios: [] as string[], igrejas:
 
 // ---------- 1. Rede: N1 aprova, N2 entra pelo convite do N1, N2 não convida ----------
 const foneN1 = `6378${sufixo()}`;
-await req(API, '/semeadores', { method: 'POST', json: { nome: 'Rede', sobrenome: 'Nivel Um', whatsapp: foneN1, cpf: '00000000191', chavePix: 'n1@exemplo.com' } });
+const semCodigo = await req(API, '/semeadores', { method: 'POST', json: { nome: 'Rede', sobrenome: 'Sem Codigo', whatsapp: foneN1, cpf: '00000000191', chavePix: 'n1@exemplo.com' } });
+conferir('Cadastro de semeador exige o código do WhatsApp', semCodigo.status === 400);
+await req(API, '/auth/codigo', { method: 'POST', json: { whatsapp: foneN1 } });
+const codigoErrado = await req(API, '/semeadores', { method: 'POST', json: { nome: 'Rede', sobrenome: 'Sem Codigo', whatsapp: foneN1, cpf: '00000000191', chavePix: 'n1@exemplo.com', codigo: '000001' } });
+conferir('Código errado não cadastra o semeador', codigoErrado.status === 400 && !db.prepare("SELECT 1 FROM semeadores WHERE sobrenome = 'Sem Codigo'").get());
+await req(API, '/auth/codigo', { method: 'POST', json: { whatsapp: foneN1 } }); await req(API, '/semeadores', { method: 'POST', json: { nome: 'Rede', sobrenome: 'Nivel Um', whatsapp: foneN1, cpf: '00000000191', chavePix: 'n1@exemplo.com', codigo: '123456' } });
 const n1 = db.prepare("SELECT id, codigo FROM semeadores WHERE sobrenome = 'Nivel Um' ORDER BY criado_em DESC").get() as { id: string; codigo: string };
 criados.semeadores.push(n1.id);
 const apr = (await req(ADM, '/aprovacoes', { token: tokAdm })).dados;
@@ -47,12 +52,14 @@ conferir('Aprovações: não analisa o mesmo cadastro duas vezes', (await req(AD
 
 limpar();
 const foneN2 = `6377${sufixo()}`;
-await req(API, '/semeadores', { method: 'POST', json: { nome: 'Rede', sobrenome: 'Nivel Dois', whatsapp: foneN2, cpf: '00000000191', chavePix: 'n2@exemplo.com', codigoIndicacao: n1.codigo } });
+await req(API, '/auth/codigo', { method: 'POST', json: { whatsapp: foneN2 } }); await req(API, '/semeadores', { method: 'POST', json: { nome: 'Rede', sobrenome: 'Nivel Dois', whatsapp: foneN2, cpf: '00000000191', chavePix: 'n2@exemplo.com', codigoIndicacao: n1.codigo, codigo: '123456' } });
 const n2 = db.prepare("SELECT id, codigo, pai_id FROM semeadores WHERE sobrenome = 'Nivel Dois' ORDER BY criado_em DESC").get() as { id: string; codigo: string; pai_id: string };
 criados.semeadores.push(n2.id);
 conferir('Convite: semeador entra como N2 do N1', n2.pai_id === n1.id);
 await req(ADM, `/aprovacoes/semeadores/${n2.id}`, { method: 'POST', token: tokAdm, json: { acao: 'aprovar' } });
-const n3 = await req(API, '/semeadores', { method: 'POST', json: { nome: 'Rede', sobrenome: 'Nivel Tres', whatsapp: `6376${sufixo()}`, cpf: '00000000191', chavePix: 'n3@exemplo.com', codigoIndicacao: n2.codigo } });
+const foneN3 = `6376${sufixo()}`;
+await req(API, '/auth/codigo', { method: 'POST', json: { whatsapp: foneN3 } });
+const n3 = await req(API, '/semeadores', { method: 'POST', json: { nome: 'Rede', sobrenome: 'Nivel Tres', whatsapp: foneN3, cpf: '00000000191', chavePix: 'n3@exemplo.com', codigoIndicacao: n2.codigo, codigo: '123456' } });
 conferir('Convite: N2 não pode convidar (rede de 2 níveis)', n3.status === 400 && /N2/.test(n3.dados.erro));
 const listaSem = (await req(ADM, '/semeadores', { token: tokAdm })).dados as any[];
 const n2Adm = listaSem.find((x) => x.id === n2.id);
@@ -153,7 +160,7 @@ await req(ADM, `/admins/${ed.id}`, { method: 'DELETE', token: tokAdm });
 
 // ---------- 7. Recusa com motivo ----------
 limpar();
-await req(API, '/semeadores', { method: 'POST', json: { nome: 'Rede', sobrenome: 'Recusado', whatsapp: `6372${sufixo()}`, cpf: '00000000191', chavePix: 'r@exemplo.com' } });
+{ const f = `6372${sufixo()}`; await req(API, '/auth/codigo', { method: 'POST', json: { whatsapp: f } }); await req(API, '/semeadores', { method: 'POST', json: { nome: 'Rede', sobrenome: 'Recusado', whatsapp: f, cpf: '00000000191', chavePix: 'r@exemplo.com', codigo: '123456' } }); };
 const rec = db.prepare("SELECT id FROM semeadores WHERE sobrenome = 'Recusado' ORDER BY criado_em DESC").get() as { id: string };
 criados.semeadores.push(rec.id);
 await req(ADM, `/aprovacoes/semeadores/${rec.id}`, { method: 'POST', token: tokAdm, json: { acao: 'rejeitar', motivo: 'Dados incompletos (teste)' } });

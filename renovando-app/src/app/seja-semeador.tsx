@@ -12,14 +12,21 @@ import { mascaraCpf, mascaraTelefone, soDigitos } from '@/utils/format';
 
 export default function SejaSemeador() {
   const { ref } = useLocalSearchParams<{ ref?: string }>();
-  const [f, setF] = useState({ nome: '', sobrenome: '', whatsapp: '', cpf: '', chavePix: '', codigoIndicacao: (ref ?? '').toUpperCase() });
+  const [f, setF] = useState({ nome: '', sobrenome: '', whatsapp: '', cpf: '', chavePix: '', codigo: '', codigoIndicacao: (ref ?? '').toUpperCase() });
+  // WhatsApp para o qual o código foi enviado: trocar o número pede um código novo.
+  const [codigoPara, setCodigoPara] = useState('');
   const set = (p: Partial<typeof f>) => setF((v) => ({ ...v, ...p }));
   const enviar = useMutation({
     mutationFn: () => api.cadastrarSemeador({ ...f, codigoIndicacao: f.codigoIndicacao || undefined }),
   });
+  const pedirCodigo = useMutation({
+    mutationFn: () => api.enviarCodigo(soDigitos(f.whatsapp)),
+    onSuccess: () => (setCodigoPara(soDigitos(f.whatsapp)), set({ codigo: '' })),
+  });
+  const codigoEnviado = codigoPara !== '' && codigoPara === soDigitos(f.whatsapp);
   const valido =
     f.nome.trim().length >= 2 && f.sobrenome.trim().length >= 2 && soDigitos(f.whatsapp).length === 11 &&
-    soDigitos(f.cpf).length === 11 && f.chavePix.trim().length >= 5;
+    soDigitos(f.cpf).length === 11 && f.chavePix.trim().length >= 5 && codigoEnviado && f.codigo.length === 6;
 
   return (
     <Tela bordas={['bottom']}>
@@ -55,6 +62,16 @@ export default function SejaSemeador() {
           </View>
           <Campo rotulo="WhatsApp *" value={f.whatsapp} keyboardType="phone-pad" placeholder="(99) 99999-9999"
             onChangeText={(t) => set({ whatsapp: mascaraTelefone(t) })} />
+          <Text style={{ color: cores.textoSuave, fontSize: 13, marginTop: -4 }}>
+            Usaremos este número para entrar no painel e para avisos. Confirme com o código enviado.
+          </Text>
+          <Botao titulo={codigoEnviado ? 'Reenviar código no WhatsApp' : 'Enviar código no WhatsApp'} variante="contorno" icone="logo-whatsapp"
+            desabilitado={soDigitos(f.whatsapp).length !== 11} carregando={pedirCodigo.isPending} onPress={() => pedirCodigo.mutate()} />
+          {pedirCodigo.error ? <Aviso>{(pedirCodigo.error as Error).message}</Aviso> : null}
+          {codigoEnviado ? (
+            <Campo rotulo="Código recebido no WhatsApp *" value={f.codigo} keyboardType="number-pad" maxLength={6} placeholder="000000"
+              autoComplete="one-time-code" textContentType="oneTimeCode" onChangeText={(t) => set({ codigo: soDigitos(t).slice(0, 6) })} />
+          ) : null}
           <Campo rotulo="CPF *" value={f.cpf} keyboardType="number-pad" placeholder="000.000.000-00"
             onChangeText={(t) => set({ cpf: mascaraCpf(t) })} />
           <Campo rotulo="Chave PIX para receber *" value={f.chavePix} autoCapitalize="none" onChangeText={(t) => set({ chavePix: t })} />

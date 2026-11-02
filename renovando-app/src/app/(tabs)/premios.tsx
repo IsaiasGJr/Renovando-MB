@@ -52,7 +52,7 @@ export default function Premios() {
               {p.ganhador ? (
                 <View style={{ backgroundColor: cores.sucessoClaro, borderRadius: raio.sm, padding: espaco.md }}>
                   <Text style={{ color: cores.sucesso, fontWeight: '700' }}>
-                    Ganhador(a): {p.ganhador.nome} · {p.ganhador.cidade}
+                    Ganhador(a): {p.ganhador.nome}{p.ganhador.cidade ? ` · ${p.ganhador.cidade}` : ''}
                   </Text>
                   <Text style={{ color: cores.sucesso }}>Número sorteado: {p.ganhador.numero}</Text>
                 </View>

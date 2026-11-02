@@ -23,6 +23,7 @@ const PainelPerfil = lazy(() => perfil().then((m) => ({ default: m.PainelPerfil 
 const CadastrarIgreja = lazy(() => perfil().then((m) => ({ default: m.CadastrarIgreja })));
 const CadastrarSemeador = lazy(() => perfil().then((m) => ({ default: m.CadastrarSemeador })));
 const MinhaIgreja = lazy(() => perfil().then((m) => ({ default: m.MinhaIgreja })));
+const RelatorioPerfil = lazy(() => perfil().then((m) => ({ default: m.RelatorioPerfil })));
 const Aprovacoes = lazy(() => import('./paginas/Aprovacoes'));
 const Repasses = lazy(() => import('./paginas/Repasses'));
 const Ajuda = lazy(() => import('./paginas/Ajuda'));
@@ -57,6 +58,7 @@ export default function App() {
         <Route path="cadastrar-igreja" element={<Suspense fallback={<Carregando />}><CadastrarIgreja /></Suspense>} />
         <Route path="cadastrar-semeador" element={<Suspense fallback={<Carregando />}><CadastrarSemeador /></Suspense>} />
         <Route path="minha-igreja/:id" element={<Suspense fallback={<Carregando />}><MinhaIgreja /></Suspense>} />
+        <Route path="relatorios" element={<Suspense fallback={<Carregando />}><RelatorioPerfil /></Suspense>} />
       </Route>
       <Route element={<Protegido />}>
         <Route index element={<Dashboard />} />

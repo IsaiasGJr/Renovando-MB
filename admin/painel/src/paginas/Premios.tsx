@@ -71,7 +71,7 @@ export default function Premios() {
           {
             titulo: 'Ganhador',
             render: (p) => (p.ganhadorNumero
-              ? <span className="selo ok">Nº {p.ganhadorNumero} · {p.ganhadorNome} · {p.ganhadorCidade}</span>
+              ? <span className="selo ok">Nº {p.ganhadorNumero} · {[p.ganhadorNome, p.ganhadorCidade].filter(Boolean).join(' · ')}</span>
               : <span className="selo">A sortear</span>),
           },
         ]}

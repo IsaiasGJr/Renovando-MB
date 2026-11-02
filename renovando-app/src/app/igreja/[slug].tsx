@@ -5,7 +5,7 @@ import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { Pressable, Share, Text, View } from 'react-native';
 import { api, BASE_URL } from '@/api';
 import { LogoIgreja } from '@/components/Igrejas';
-import { Aviso, Botao, Carregando, Cartao, Contador, Tela } from '@/components/ui';
+import { Aviso, Botao, Carregando, Cartao, Contador, Tela, ValoresRapidos } from '@/components/ui';
 import { useAuth } from '@/store/auth';
 import { useRascunhoOferta } from '@/store/oferta';
 import { cores, espaco, gradienteMarca, gradienteOuro, raio, sombra } from '@/theme';
@@ -77,6 +77,7 @@ export default function PaginaIgreja() {
             <Text style={{ flex: 1, color: cores.textoSuave, fontSize: 14, fontWeight: '600' }}>{quantidade} {quantidade === 1 ? 'número' : 'números'} da sorte</Text>
             <Contador valor={quantidade} onChange={(v) => definir({ quantidade: v })} />
           </View>
+          <ValoresRapidos quantidade={quantidade} valorCupom={c.valorCupom} onChange={(v) => definir({ quantidade: v })} />
         </View>
 
         <Pressable onPress={() => ofertar(false)} accessibilityRole="button" style={{ borderRadius: raio.md, overflow: 'hidden' }}>

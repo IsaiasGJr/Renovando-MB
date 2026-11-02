@@ -198,7 +198,7 @@ export function cupomParaImagem(usuarioId: string, cupomId: string) {
 export async function lembrarSorteios() {
   const proximos = todos<{ id: string; nome: string; dataSorteio: string }>(
     `SELECT p.id, p.nome, p.data_sorteio FROM premios p JOIN campanhas c ON c.id = p.campanha_id
-      WHERE c.ativa = 1 AND p.ganhador_cupom_id IS NULL AND p.lembrete_enviado_em IS NULL`,
+      WHERE c.ativa = 1 AND p.ganhador_numero IS NULL AND p.lembrete_enviado_em IS NULL`,
   ).filter((p) => {
     const falta = new Date(p.dataSorteio).getTime() - Date.now();
     return falta > 0 && falta <= 24 * 3_600_000;
@@ -250,12 +250,12 @@ export function excluirConta(usuarioId: string) {
 
 /** Sorteia um prêmio: aleatório entre os cupons da campanha, ou pelo número informado. */
 export function sortearPremio(premioId: string, numeroInformado?: string) {
-  const premio = um<{ id: string; campanhaId: string; ganhadorCupomId: string | null }>(
-    'SELECT id, campanha_id, ganhador_cupom_id FROM premios WHERE id = ?',
+  const premio = um<{ id: string; campanhaId: string; ganhadorCupomId: string | null; ganhadorNumero: string | null }>(
+    'SELECT id, campanha_id, ganhador_cupom_id, ganhador_numero FROM premios WHERE id = ?',
     premioId,
   );
   if (!premio) throw naoEncontrado('Prêmio');
-  if (premio.ganhadorCupomId) throw new ErroHttp(409, 'Este prêmio já foi sorteado.');
+  if (premio.ganhadorCupomId || premio.ganhadorNumero) throw new ErroHttp(409, 'Este prêmio já foi sorteado.');
 
   type CupomGanhador = { id: string; numero: string; nome: string; sobrenome: string; cidade: string; uf: string };
   const base = `SELECT c.id, c.numero, u.nome, u.sobrenome, i.cidade, i.uf

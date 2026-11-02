@@ -8,7 +8,7 @@ import { Linking, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDi
 import { api } from '@/api';
 import { CartaoNoticia, Depoimentos, ListaFaq, Secao } from '@/components/Conteudo';
 import { Marca } from '@/components/Marca';
-import { Aviso, Botao, Carregando, Cartao, Contador, Tela } from '@/components/ui';
+import { Aviso, Botao, Carregando, Cartao, Contador, Tela, ValoresRapidos } from '@/components/ui';
 import { useAuth } from '@/store/auth';
 import { useRascunhoOferta } from '@/store/oferta';
 import type { Banner, Premio } from '@/types';
@@ -176,6 +176,7 @@ export default function Inicio() {
             <Text style={st.numeros}>{quantidade} {quantidade === 1 ? 'número' : 'números'} da sorte</Text>
             <Contador valor={quantidade} onChange={(v) => definir({ quantidade: v })} />
           </View>
+          <ValoresRapidos quantidade={quantidade} valorCupom={c.valorCupom} onChange={(v) => definir({ quantidade: v })} />
         </View>
 
         <Pressable onPress={() => ofertar(false)} accessibilityRole="button"

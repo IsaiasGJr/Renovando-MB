@@ -975,10 +975,10 @@ admin.post('/importacoes/:tipo', somenteAdmin, (req, res) => {
 
 admin.get('/sorteios/resumo', (_req, res) => {
   res.json(um(
-    `SELECT COUNT(*) AS total, COUNT(ganhador_cupom_id) AS distribuidos, COUNT(*) - COUNT(ganhador_cupom_id) AS pendentes,
+    `SELECT COUNT(*) AS total, COUNT(ganhador_numero) AS distribuidos, COUNT(*) - COUNT(ganhador_numero) AS pendentes,
             COALESCE(SUM(valor_estimado), 0) AS valor_total,
-            COALESCE(SUM(CASE WHEN ganhador_cupom_id IS NOT NULL THEN valor_estimado END), 0) AS valor_distribuido,
-            MIN(CASE WHEN ganhador_cupom_id IS NULL THEN data_sorteio END) AS proximo
+            COALESCE(SUM(CASE WHEN ganhador_numero IS NOT NULL THEN valor_estimado END), 0) AS valor_distribuido,
+            MIN(CASE WHEN ganhador_numero IS NULL THEN data_sorteio END) AS proximo
        FROM premios p JOIN campanhas c ON c.id = p.campanha_id WHERE c.ativa = 1`,
   ));
 });

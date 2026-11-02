@@ -109,6 +109,7 @@ Gera as telas do painel e sobe o servidor do admin em http://localhost:4000, ent
 - **Banners do topo**, **Parcerias**, **Galeria do Palmas para Jesus**, **Páginas legais** (Privacidade e Termos) e **Mensagens** do "Fale conosco" (com anexos que só o admin baixa).
 - **Igrejas** com logo, mensagem e endereço da página (`/igreja/<endereco>`); **artistas** com biografia e galeria de fotos.
 - **Importar planilhas** (só administradores): WhatsApp dos pastores e chaves PIX das igrejas, semeadores N1/N2 e parceiros por CSV do Excel. O sistema confere linha por linha antes de gravar e planilha com erro nunca é gravada.
+- **Painel do pastor e do semeador** (entrada pelo WhatsApp): ofertas do mês e da semana, oferta média, membros contribuintes e **Relatórios** por período com CSV.
 
 ## O que o app dos ofertantes tem
 
@@ -159,7 +160,7 @@ Com `npm run api` e `npm run admin` ligados (modo de desenvolvimento):
 npm test
 ```
 
-Roda 222 verificações: segurança, criptografia, exclusão de conta, envio de imagens, painéis, verificação em duas etapas,
+Roda 228 verificações: segurança, criptografia, exclusão de conta, envio de imagens, painéis, verificação em duas etapas,
 WhatsApp, avisos no celular e mais. Os testes **nunca mexem em igrejas reais** (cada um cria uma igreja temporária e apaga
 tudo no fim) e se recusam a rodar se a API não estiver em modo de desenvolvimento.
 
@@ -169,7 +170,7 @@ tudo no fim) e se recusam a rodar se a API não estiver em modo de desenvolvimen
 |---|---|
 | `npm run importar-igrejas` | as igrejas credenciadas (com logo e chave PIX cifrada) |
 | `npm run importar-artistas` | o catálogo de shows gospel |
-| `npm run importar-conteudo` | prêmios (valores e fotos), perguntas frequentes, Política de Privacidade, Termos de Uso, depoimentos, notícias, parcerias, banners e galeria do Palmas para Jesus |
+| `npm run importar-conteudo` | prêmios (nome, valor, foto e resultado dos sorteios já feitos no site), perguntas frequentes, Política de Privacidade, Termos de Uso, depoimentos, notícias, parcerias, banners e galeria do Palmas para Jesus |
 | `npm run otimizar-imagens` | deixa as imagens no padrão (WEBP, até 1600 px) e guarda as sem uso |
 
 Todos só leem as páginas públicas do site e podem rodar de novo sem duplicar. Os Termos vêm com as 13 seções do site mais a seção

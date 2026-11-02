@@ -19,18 +19,24 @@ export function montarPainel(whatsappIndice: string) {
   const percentuais = { igreja: pct('igreja'), semeador: pct('semeador') };
 
   // Totais de todas as igrejas envolvidas numa única consulta.
+  // Mês e semana no horário de Brasília; "membros" = pessoas diferentes que ofertaram (sem contar anônimos).
+  type Totais = { arrecadado: number; ofertas: number; cupons: number; mes: number; semana: number; media: number; membros: number };
   const totaisDe = (ids: string[]) => {
-    const mapa = new Map<string, { arrecadado: number; ofertas: number; cupons: number }>();
+    const mapa = new Map<string, Totais>();
     if (!ids.length) return mapa;
-    for (const t of todos<{ igrejaId: string; arrecadado: number; ofertas: number; cupons: number }>(
+    for (const { igrejaId, ...t } of todos<Totais & { igrejaId: string }>(
       `SELECT igreja_id, COALESCE(SUM(valor),0) AS arrecadado, COUNT(*) AS ofertas,
-              COALESCE(SUM(CASE WHEN anonima = 0 THEN quantidade ELSE 0 END),0) AS cupons
+              COALESCE(SUM(CASE WHEN anonima = 0 THEN quantidade ELSE 0 END),0) AS cupons,
+              COALESCE(SUM(CASE WHEN substr(datetime(paga_em, '-3 hours'), 1, 7) = substr(datetime('now', '-3 hours'), 1, 7) THEN valor END),0) AS mes,
+              COALESCE(SUM(CASE WHEN paga_em >= strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-7 days') THEN valor END),0) AS semana,
+              COALESCE(ROUND(AVG(valor), 2),0) AS media,
+              COUNT(DISTINCT CASE WHEN anonima = 0 THEN usuario_id END) AS membros
          FROM ofertas WHERE status = 'paga' AND igreja_id IN (${ids.map(() => '?').join(',')}) GROUP BY igreja_id`,
       ...ids,
-    )) mapa.set(t.igrejaId, { arrecadado: t.arrecadado, ofertas: t.ofertas, cupons: t.cupons });
+    )) mapa.set(igrejaId, t);
     return mapa;
   };
-  const zerado = { arrecadado: 0, ofertas: 0, cupons: 0 };
+  const zerado: Totais = { arrecadado: 0, ofertas: 0, cupons: 0, mes: 0, semana: 0, media: 0, membros: 0 };
 
   const minhas = todos<{ id: string; slug: string; nomeFantasia: string; cidade: string; uf: string; status: string; logoUrl: string; protocolo: string; observacao: string }>(
     'SELECT id, slug, nome_fantasia, cidade, uf, status, logo_url, protocolo, observacao FROM igrejas WHERE pastor_whatsapp_indice = ? ORDER BY nome_fantasia',
@@ -100,14 +106,19 @@ export function podeVerIgreja(whatsappIndice: string, igrejaId: string) {
  * Últimas ofertas pagas das igrejas indicadas (para pastor e semeador). Mostra só o primeiro nome
  * e a inicial de quem ofertou ("Membros contribuintes"), nunca o WhatsApp.
  */
-export function ofertasRecentes(igrejaIds: string[], limite = 30) {
+export function ofertasRecentes(igrejaIds: string[], limite = 30, periodo: { de?: string; ate?: string } = {}) {
   if (!igrejaIds.length) return [];
+  // Período em dias do calendário de Brasília (de/até no formato AAAA-MM-DD).
+  const filtro = [
+    periodo.de ? "AND date(o.paga_em, '-3 hours') >= ?" : '',
+    periodo.ate ? "AND date(o.paga_em, '-3 hours') <= ?" : '',
+  ].join(' ');
   return todos<{ id: string; valor: number; quantidade: number; pagaEm: string; igreja: string; anonima: number; nome: string | null; sobrenome: string | null; excluido: string | null }>(
     `SELECT o.id, o.valor, o.quantidade, o.paga_em, i.nome_fantasia AS igreja, o.anonima, u.nome, u.sobrenome, u.excluido_em AS excluido
        FROM ofertas o JOIN igrejas i ON i.id = o.igreja_id LEFT JOIN usuarios u ON u.id = o.usuario_id
-      WHERE o.status = 'paga' AND o.igreja_id IN (${igrejaIds.map(() => '?').join(',')})
+      WHERE o.status = 'paga' AND o.igreja_id IN (${igrejaIds.map(() => '?').join(',')}) ${filtro}
       ORDER BY o.paga_em DESC LIMIT ?`,
-    ...igrejaIds, limite,
+    ...igrejaIds, ...(periodo.de ? [periodo.de] : []), ...(periodo.ate ? [periodo.ate] : []), limite,
   ).map(({ anonima, nome, sobrenome, excluido, ...o }) => ({
     ...o,
     ofertante: anonima ? 'Anônimo' : excluido || !nome ? 'Ofertante' : `${nome} ${(sobrenome ?? '').charAt(0)}${sobrenome ? '.' : ''}`.trim(),

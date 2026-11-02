@@ -81,6 +81,10 @@ export default function Painel() {
                   <Numero rotulo="Arrecadado" valor={moeda(i.arrecadado)} />
                   <Numero rotulo="Ofertas pagas" valor={numero(i.ofertas)} />
                   <Numero rotulo="Números da sorte" valor={numero(i.cupons)} />
+                  <Numero rotulo="Ofertas deste mês" valor={moeda(i.mes)} />
+                  <Numero rotulo="Últimos 7 dias" valor={moeda(i.semana)} />
+                  <Numero rotulo="Oferta média" valor={moeda(i.media)} />
+                  <Numero rotulo="Membros contribuintes" valor={numero(i.membros)} />
                 </View>
                 <Botao titulo="Divulgar o link da igreja" icone="share-social-outline"
                   onPress={() => Share.share({ message: `Oferte para a ${i.nomeFantasia} na campanha Renovando e concorra a prêmios: ${BASE_URL}/igreja/${i.slug}` })} />

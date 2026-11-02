@@ -57,7 +57,7 @@ conferir('código errado continua sendo recusado', s3.status === 400);
 // 4. Semeador: CPF e WhatsApp cifrados no banco, legíveis no admin
 const cpfTeste = '00000000191';
 const foneSem = `6390${String(Date.now()).slice(-7)}`;
-await req(API, '/semeadores', { method: 'POST', json: { nome: 'Semeador', sobrenome: 'Cifrado', whatsapp: foneSem, cpf: cpfTeste, chavePix: 'teste@exemplo.com' } });
+await req(API, '/auth/codigo', { method: 'POST', json: { whatsapp: foneSem } }); await req(API, '/semeadores', { method: 'POST', json: { nome: 'Semeador', sobrenome: 'Cifrado', whatsapp: foneSem, cpf: cpfTeste, chavePix: 'teste@exemplo.com', codigo: '123456' } });
 const semBruto = db.prepare("SELECT id, whatsapp, cpf FROM semeadores WHERE sobrenome = 'Cifrado' ORDER BY criado_em DESC").get();
 conferir('semeador: CPF e WhatsApp cifrados no banco', semBruto.cpf.startsWith('v1:') && semBruto.whatsapp.startsWith('v1:') && !semBruto.cpf.includes(cpfTeste));
 const tokAdm = (await req(ADM, '/login', { method: 'POST', json: { email: envAdmin.ADMIN_EMAIL, senha: envAdmin.ADMIN_SENHA } })).dados.token;

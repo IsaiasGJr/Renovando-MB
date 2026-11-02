@@ -93,7 +93,7 @@ conferir('ofertante comum não vê igreja nenhuma', (await req(API, '/me/painel'
 
 // 6. Painel do semeador + vínculo pelo código
 const foneSem = `6383${sufixo}`;
-await req(API, '/semeadores', { method: 'POST', json: { nome: 'Semeador', sobrenome: 'Painel', whatsapp: foneSem, cpf: '00000000191', chavePix: 'sem@exemplo.com' } });
+await req(API, '/auth/codigo', { method: 'POST', json: { whatsapp: foneSem } }); await req(API, '/semeadores', { method: 'POST', json: { nome: 'Semeador', sobrenome: 'Painel', whatsapp: foneSem, cpf: '00000000191', chavePix: 'sem@exemplo.com', codigo: '123456' } });
 const sem = db.prepare("SELECT id, codigo FROM semeadores WHERE sobrenome = 'Painel' ORDER BY criado_em DESC").get();
 await req(ADM, `/semeadores/${sem.id}`, { method: 'PUT', token: tokAdm, json: { status: 'ativo' } });
 await req(ADM, `/igrejas/${igrejaNova.id}`, { method: 'PUT', token: tokAdm, json: { semeadorId: sem.id } });

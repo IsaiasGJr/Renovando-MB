@@ -141,8 +141,12 @@ publico.post('/igrejas', limiteCadastro, (req, res) => {
   res.status(201).json({ protocolo, status });
 });
 
+// Como no site: o WhatsApp do semeador é confirmado com o código enviado (o mesmo do login).
 publico.post('/semeadores', limiteCadastro, (req, res) => {
-  cadastrarSemeador(validar(novoSemeadorSchema, req.body));
+  const dados = validar(novoSemeadorSchema, req.body);
+  const { codigo } = validar(z.object({ codigo: z.string().regex(/^\d{6}$/, 'informe o código de 6 dígitos enviado ao WhatsApp') }), req.body);
+  conferirCodigo(dados.whatsapp, codigo);
+  cadastrarSemeador(dados);
   res.status(201).json({ status: 'pendente' });
 });
 

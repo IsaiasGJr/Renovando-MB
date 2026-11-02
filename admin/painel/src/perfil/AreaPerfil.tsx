@@ -9,7 +9,7 @@ import { apiPerfil, baixarPerfil, lerSessaoPerfil, salvarSessaoPerfil } from './
 type Saldo = { aReceber: number; recebido: number };
 type Mov = { id: string; papel: string; percentual: number; valor: number; status: string; criadoEm: string; campanha: string; igreja: string };
 type Oferta = { id: string; valor: number; quantidade: number; pagaEm: string; igreja: string; ofertante: string };
-type IgrejaPastor = { id: string; slug: string; nomeFantasia: string; cidade: string; uf: string; status: string; protocolo: string; observacao: string; arrecadado: number; ofertas: number; cupons: number; saldo: Saldo };
+type IgrejaPastor = { id: string; slug: string; nomeFantasia: string; cidade: string; uf: string; status: string; protocolo: string; observacao: string; arrecadado: number; ofertas: number; cupons: number; saldo: Saldo; mes: number; semana: number; media: number; membros: number };
 type Painel = {
   urlPublica?: string;
   igrejas?: IgrejaPastor[];
@@ -34,6 +34,7 @@ export function LayoutPerfil() {
       <nav className="menu" aria-label="Menu">
         <div className="marca"><Simbolo /><div>Renovando<small>{s.perfil.rotulo}</small></div></div>
         <NavLink to="/perfil" end>Meu painel</NavLink>
+        {s.perfil.tipo !== 'parceiro' ? <NavLink to="/perfil/relatorios">Relatórios</NavLink> : null}
         {ehSemeador ? <NavLink to="/perfil/cadastrar-igreja">Cadastrar igreja</NavLink> : null}
         {ehN1 ? <NavLink to="/perfil/cadastrar-semeador">Cadastrar semeador N2</NavLink> : null}
         <div className="rodape">
@@ -140,6 +141,10 @@ export function PainelPerfil() {
                 <Num rotulo="Arrecadado" valor={moeda(i.arrecadado)} />
                 <Num rotulo="Ofertas pagas" valor={numero(i.ofertas)} />
                 <Num rotulo="Números da sorte" valor={numero(i.cupons)} />
+                <Num rotulo="Ofertas deste mês" valor={moeda(i.mes)} />
+                <Num rotulo="Últimos 7 dias" valor={moeda(i.semana)} />
+                <Num rotulo="Oferta média" valor={moeda(i.media)} />
+                <Num rotulo="Membros contribuintes" valor={numero(i.membros)} />
               </div>
               <div className="linha" style={{ flexWrap: 'wrap' }}>
                 <NavLink className="btn peq" to={`/perfil/minha-igreja/${i.id}`}>Minha igreja (logo e mensagem)</NavLink>
@@ -245,6 +250,50 @@ const UFS = 'AC AL AM AP BA CE DF ES GO MA MG MS MT PA PB PE PI PR RJ RN RO RR R
 
 function Campo({ id, rotulo, children }: { id: string; rotulo: string; children: ReactNode }) {
   return <div className="campo"><label htmlFor={id}>{rotulo}</label>{children}</div>;
+}
+
+type Relatorio = { linhas: Oferta[]; resumo: { ofertas: number; total: number; cupons: number; media: number; membros: number } };
+
+/** Relatório por período do pastor ou do semeador (ofertas pagas das igrejas dele), com CSV para o Excel. */
+export function RelatorioPerfil() {
+  const hoje = new Date();
+  const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const [de, setDe] = useState(iso(new Date(hoje.getFullYear(), hoje.getMonth(), 1)));
+  const [ate, setAte] = useState(iso(hoje));
+  const [erroCsv, setErroCsv] = useState<unknown>(null);
+  const filtro = `de=${de}&ate=${ate}`;
+  const q = useQuery({ queryKey: ['perfil-relatorio', de, ate], queryFn: () => apiPerfil<Relatorio>(`/relatorio?${filtro}`), enabled: !!de && !!ate });
+  const atalho = (dias: number) => (setDe(iso(new Date(Date.now() - (dias - 1) * 86_400_000))), setAte(iso(hoje)));
+  const r = q.data;
+  return (
+    <div className="pilha">
+      <Cabecalho titulo="Relatórios" sub="Ofertas pagas nas suas igrejas no período escolhido." />
+      <div className="cartao linha" style={{ flexWrap: 'wrap', alignItems: 'flex-end' }}>
+        <div className="campo"><label htmlFor="r-de">De</label>
+          <input id="r-de" className="input" type="date" value={de} max={ate} onChange={(e) => setDe(e.target.value)} /></div>
+        <div className="campo"><label htmlFor="r-ate">Até</label>
+          <input id="r-ate" className="input" type="date" value={ate} min={de} onChange={(e) => setAte(e.target.value)} /></div>
+        <button className="btn sec peq" onClick={() => atalho(7)}>Últimos 7 dias</button>
+        <button className="btn sec peq" onClick={() => atalho(30)}>Últimos 30 dias</button>
+        <button className="btn peq" disabled={!r?.linhas.length}
+          onClick={() => baixarPerfil(`/relatorio.csv?${filtro}`, `relatorio-${de}-a-${ate}.csv`).catch(setErroCsv)}>Baixar CSV (Excel)</button>
+      </div>
+      <Erro erro={q.error ?? erroCsv} />
+      {q.isLoading ? <Carregando /> : null}
+      {r ? (
+        <>
+          <div className="grade grade-kpi">
+            <Num destaque rotulo="Total ofertado" valor={moeda(r.resumo.total)} />
+            <Num rotulo="Ofertas pagas" valor={numero(r.resumo.ofertas)} />
+            <Num rotulo="Números da sorte" valor={numero(r.resumo.cupons)} />
+            <Num rotulo="Oferta média" valor={moeda(r.resumo.media)} />
+            <Num rotulo="Membros contribuintes" valor={numero(r.resumo.membros)} />
+          </div>
+          <Ofertas lista={r.linhas} titulo="Ofertas do período" />
+        </>
+      ) : null}
+    </div>
+  );
 }
 
 export function CadastrarIgreja() {

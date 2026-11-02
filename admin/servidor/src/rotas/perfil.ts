@@ -5,11 +5,12 @@
 import { createHash, randomInt, timingSafeEqual } from 'node:crypto';
 import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { Router } from 'express';
+import { type Request, Router } from 'express';
 import multer from 'multer';
 import { z } from 'zod';
 import { registrar } from '../../../../compartilhado/src/auditoria.ts';
 import { decifrar, indice } from '../../../../compartilhado/src/cripto.ts';
+import { montarCsv } from '../../../../compartilhado/src/csv.ts';
 import { executar, PASTA_UPLOADS, um } from '../../../../compartilhado/src/db.ts';
 import {
   cadastrarIgreja, cadastrarSemeador, montarPainel, novaIgrejaSchema, novoSemeadorSchema, ofertasRecentes, podeVerIgreja, whatsappSchema,
@@ -132,6 +133,43 @@ perfil.get('/me', (req, res) => {
 });
 
 /** Só o que é do perfil escolhido (o pastor não vê o painel de semeador da mesma pessoa, e vice-versa). */
+/** Igrejas ativas que este perfil acompanha (as do pastor, ou as indicadas pelo semeador). */
+function igrejasDoPerfil(p: NonNullable<Request['perfil']>, tudo = montarPainel(p.indice)) {
+  if (p.tipo === 'pastor') return tudo.igrejas.filter((i) => i.status === 'ativa').map((i) => i.id);
+  if (p.tipo === 'semeador') return (tudo.semeador?.igrejas ?? []).filter((i) => i.status === 'ativa').map((i) => i.id);
+  return [];
+}
+
+// Relatório por período (como /pastor/relatorios e /seeder-n1/relatorios do site): ofertas pagas das igrejas do perfil.
+const periodoSchema = z.object({
+  de: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  ate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+});
+function relatorio(req: Request) {
+  const periodo = validar(periodoSchema, { de: query(req, 'de') || undefined, ate: query(req, 'ate') || undefined });
+  const linhas = ofertasRecentes(igrejasDoPerfil(req.perfil!), 5000, periodo);
+  const total = linhas.reduce((acc, l) => acc + l.valor, 0);
+  return {
+    periodo, linhas,
+    resumo: {
+      ofertas: linhas.length, total: Math.round(total * 100) / 100, cupons: linhas.reduce((acc, l) => acc + l.quantidade, 0),
+      media: linhas.length ? Math.round((total / linhas.length) * 100) / 100 : 0,
+      membros: new Set(linhas.filter((l) => l.ofertante !== 'Anônimo').map((l) => l.ofertante)).size,
+    },
+  };
+}
+perfil.get('/relatorio', (req, res) => {
+  res.json(relatorio(req));
+});
+perfil.get('/relatorio.csv', (req, res) => {
+  const r = relatorio(req);
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="relatorio-${r.periodo.de ?? 'inicio'}-a-${r.periodo.ate ?? 'hoje'}.csv"`);
+  res.send(montarCsv(['data', 'igreja', 'ofertante', 'cupons', 'valor'], r.linhas.map((l) => ({
+    data: l.pagaEm.slice(0, 10), igreja: l.igreja, ofertante: l.ofertante, cupons: l.quantidade, valor: l.valor.toFixed(2).replace('.', ','),
+  }))));
+});
+
 perfil.get('/painel', (req, res) => {
   const p = req.perfil!;
   const tudo = montarPainel(p.indice);

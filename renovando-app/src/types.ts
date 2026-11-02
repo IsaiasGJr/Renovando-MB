@@ -104,6 +104,8 @@ export type NovoSemeador = {
   cpf: string;
   chavePix: string;
   codigoIndicacao?: string;
+  /** Código de 6 dígitos enviado ao WhatsApp (confirma que o número é dele). */
+  codigo: string;
 };
 
 export type SolicitacaoShow = {
@@ -132,6 +134,8 @@ export type MensagemContato = { nome: string; sobrenome: string; whatsapp: strin
 export type PainelIgreja = {
   id: string; slug: string; nomeFantasia: string; cidade: string; uf: string; status: string; logoUrl: string; protocolo: string;
   arrecadado: number; ofertas: number; cupons: number; repasse: number; saldo: Saldo;
+  /** Ofertas pagas no mês e nos últimos 7 dias (R$), oferta média e pessoas diferentes que ofertaram. */
+  mes: number; semana: number; media: number; membros: number;
 };
 /** Repasses: o que já foi pago pela equipe e o que ainda falta receber. */
 export type Saldo = { aReceber: number; recebido: number; total: number };

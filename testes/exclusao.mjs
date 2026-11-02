@@ -54,7 +54,7 @@ const lista = (await req(ADM, `/usuarios?busca=${encodeURIComponent('Exclusão')
 conferir('some da lista de ofertantes do admin', !lista.some((x) => x.id === sess.usuario.id));
 const csv = await fetch(`${ADM}/relatorios/ofertas.csv`, { headers: { Authorization: `Bearer ${tokAdm}` } }).then((x) => x.text());
 conferir('relatório não mostra telefone nem marcador interno', !csv.includes(fone) && !csv.includes('excluido:'));
-const premio = db.prepare("SELECT id FROM premios WHERE ganhador_cupom_id IS NULL ORDER BY data_sorteio LIMIT 1").get();
+const premio = db.prepare("SELECT id FROM premios WHERE ganhador_numero IS NULL ORDER BY data_sorteio LIMIT 1").get();
 r = await req(ADM, `/premios/${premio.id}/sortear`, { method: 'POST', token: tokAdm, json: { numero: cupons[0].numero } });
 conferir('cupons da conta excluída não podem ganhar', r.status === 404, r.dados?.erro);
 const aud = (await req(ADM, '/auditoria?recurso=conta', { token: tokAdm })).dados;

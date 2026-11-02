@@ -72,11 +72,17 @@ conferir('Pastor: não mexe em igreja de outro pastor', (await req(ADM, `/perfil
 const pdf = await fetch(`${ADM}/perfil/igrejas/${temp.id}/panfleto?porPagina=6`, { headers: { Authorization: `Bearer ${pastor.token}` } });
 conferir('Pastor: baixa o panfleto da igreja', pdf.status === 200 && (await pdf.text()).startsWith('%PDF'));
 conferir('Pastor: não cadastra igrejas (é coisa de semeador)', (await req(ADM, '/perfil/igrejas', { method: 'POST', token: pastor.token, json: {} })).status === 403);
+conferir('Pastor: painel traz ofertas do mês, da semana, média e membros', ['mes', 'semana', 'media', 'membros'].every((k) => typeof pp.igrejas[0][k] === 'number'));
+const rel = await req(ADM, '/perfil/relatorio?de=2026-01-01&ate=2026-12-31', { token: pastor.token });
+conferir('Pastor: relatório por período com resumo', rel.status === 200 && Array.isArray(rel.dados.linhas) && typeof rel.dados.resumo.total === 'number');
+conferir('Relatório recusa data inválida', (await req(ADM, '/perfil/relatorio?de=31-12-2026', { token: pastor.token })).status === 400);
+const csv = await fetch(`${ADM}/perfil/relatorio.csv?de=2026-01-01&ate=2026-12-31`, { headers: { Authorization: `Bearer ${pastor.token}` } });
+conferir('Pastor: relatório em CSV para o Excel', csv.status === 200 && (await csv.text()).replace(/^﻿/, '').startsWith('data;igreja;ofertante;cupons;valor'));
 
 // ---------- 4. Semeador N1 (que também é pastor) e N2 ----------
 limpar();
 const foneN1 = temp.pastorWhatsapp; // a mesma pessoa: pastor e semeador
-await req(API, '/semeadores', { method: 'POST', json: { nome: 'Perfil', sobrenome: 'Semeador Um', whatsapp: foneN1, cpf: '00000000191', chavePix: 'n1@exemplo.com' } });
+await req(API, '/auth/codigo', { method: 'POST', json: { whatsapp: foneN1 } }); await req(API, '/semeadores', { method: 'POST', json: { nome: 'Perfil', sobrenome: 'Semeador Um', whatsapp: foneN1, cpf: '00000000191', chavePix: 'n1@exemplo.com', codigo: '123456' } });
 const n1 = db.prepare("SELECT id FROM semeadores WHERE sobrenome = 'Semeador Um' ORDER BY criado_em DESC").get() as { id: string };
 const vPend = await verificar(foneN1);
 conferir('Cadastro de semeador em análise aparece como situação', vPend.dados.situacoes.some((s: any) => s.tipo === 'semeador' && s.status === 'pendente'));

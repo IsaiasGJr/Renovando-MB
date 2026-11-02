@@ -122,7 +122,7 @@ async function imagem(url: string | null | undefined, lado = 1600) {
 console.log('Lendo o site...');
 const home = dadosDaPagina(await texto(SITE));
 const campanhaSite = (await json<{ data: { id: number; beginning: string; closure: string }[] }>(`${SITE}/api/campaigns`)).data[0];
-const premiosSite = (await json<{ prizes: { name: string; price: string; image_url: string; draw_date: string }[] }>(`${SITE}/api/campaign-prizes?campaignId=${campanhaSite.id}`)).prizes;
+const premiosSite = (await json<{ prizes: { name: string; price: string; image_url: string; draw_date: string; winning_ticket: number | null; winner_name: string | null }[] }>(`${SITE}/api/campaign-prizes?campaignId=${campanhaSite.id}`)).prizes;
 const faqsSite = (await json<{ data: { question: string; answer: string }[] }>(`${SITE}/api/faq`)).data;
 const depoimentosSite = lista<{ title: string; body: string; author: string }>(home, 'testimonials');
 const noticiasSite = lista<{ id: string; title: string; content: string; image: string | null; status: string; publish_date: string }>(home, 'initialPosts');
@@ -177,16 +177,25 @@ const resumo = transacao(() => {
     executar('UPDATE campanhas SET inicio = ?, fim = ? WHERE id = ?', diaBrasilia(campanhaSite.beginning), diaBrasilia(campanhaSite.closure), campanha.id);
   }
 
-  // Prêmios: casa pelo tipo e pela data do sorteio; atualiza valor e foto (não mexe em sorteios já feitos).
+  // Prêmios: casa pelo tipo e pela data do sorteio; atualiza nome, valor e foto.
+  // Resultado: o site já sorteou alguns prêmios (cupons do sistema antigo). Entra o número e o nome
+  // abreviado do ganhador, como o site mostra, só se aqui ainda não houver sorteio.
   r.premios = 0;
+  r.resultados = 0;
   if (campanha) {
-    const nossos = todos<{ id: string; nome: string; dataSorteio: string }>('SELECT id, nome, data_sorteio FROM premios WHERE campanha_id = ?', campanha.id);
+    const nossos = todos<{ id: string; nome: string; dataSorteio: string; ganhadorNumero: string | null }>(
+      'SELECT id, nome, data_sorteio, ganhador_numero FROM premios WHERE campanha_id = ?', campanha.id);
     premiosSite.forEach((p, i) => {
       const alvo = nossos.find((n) => tipoPremio(n.nome) === tipoPremio(p.name) && n.dataSorteio.slice(0, 10) === diaBrasilia(p.draw_date));
       const dados = { valorEstimado: Number(p.price), ...(fotosPremios[i] ? { imagemUrl: fotosPremios[i] } : {}) };
       if (alvo) {
-        executar(`UPDATE premios SET valor_estimado = ?${dados.imagemUrl ? ', imagem_url = ?' : ''} WHERE id = ?`,
-          ...[dados.valorEstimado, ...(dados.imagemUrl ? [dados.imagemUrl] : []), alvo.id]);
+        executar(`UPDATE premios SET nome = ?, valor_estimado = ?${dados.imagemUrl ? ', imagem_url = ?' : ''} WHERE id = ?`,
+          ...[limpar(p.name), dados.valorEstimado, ...(dados.imagemUrl ? [dados.imagemUrl] : []), alvo.id]);
+        if (p.winning_ticket != null && !alvo.ganhadorNumero) {
+          executar('UPDATE premios SET ganhador_numero = ?, ganhador_nome = ?, sorteado_em = ? WHERE id = ?',
+            String(p.winning_ticket).padStart(6, '0'), limpar(p.winner_name ?? ''), new Date(p.draw_date).toISOString(), alvo.id);
+          r.resultados++;
+        }
       } else {
         inserir('premios', {
           id: novoId(), campanhaId: campanha.id, nome: limpar(p.name), valorEstimado: dados.valorEstimado, imagemUrl: dados.imagemUrl ?? '',
