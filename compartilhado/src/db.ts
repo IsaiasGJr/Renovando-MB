@@ -13,12 +13,27 @@ mkdirSync(PASTA_UPLOADS, { recursive: true });
 
 export const db = new DatabaseSync(join(PASTA_DADOS, 'renovando.db'), { timeout: 5000 });
 // WAL + busy_timeout: os dois servidores acessam o mesmo arquivo ao mesmo tempo.
-db.exec('PRAGMA busy_timeout = 5000; PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;');
+db.exec('PRAGMA busy_timeout = 5000; PRAGMA foreign_keys = ON;');
+// Na primeira subida, API, admin e backup abrem o banco juntos e só um consegue ligar o WAL de cada vez
+// (essa troca não espera o busy_timeout): tenta de novo por até 10 s em vez de cair.
+for (let tentativa = 0; ; tentativa++) {
+  try {
+    db.exec('PRAGMA journal_mode = WAL;');
+    break;
+  } catch (e) {
+    if (tentativa >= 100 || !/locked|busy/i.test(String(e))) throw e;
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 100);
+  }
+}
 // Ao apagar/alterar, sobrescreve o conteúdo antigo com zeros (não sobram dados pessoais em páginas livres).
 db.exec('PRAGMA secure_delete = ON;');
 // Desempenho: com WAL, synchronous NORMAL continua seguro contra corrupção e grava bem mais rápido.
 // Cache de páginas maior (≈16 MB), temporários em memória e leitura por mapeamento de memória.
 db.exec('PRAGMA synchronous = NORMAL; PRAGMA cache_size = -16000; PRAGMA temp_store = MEMORY; PRAGMA mmap_size = 134217728;');
+
+// Tabelas, colunas novas e índices numa transação exclusiva: quando API, admin e backup sobem juntos,
+// um prepara o banco e os outros esperam (sem dois processos criando a mesma coluna ao mesmo tempo).
+db.exec('BEGIN IMMEDIATE');
 
 db.exec(`
 CREATE TABLE IF NOT EXISTS admins (
@@ -212,7 +227,13 @@ CREATE TABLE IF NOT EXISTS solicitacoes_show (
 // Migrações simples: adiciona colunas novas em bancos criados antes delas.
 function garantirColuna(tabela: string, coluna: string, definicao: string) {
   const existe = (db.prepare(`PRAGMA table_info(${tabela})`).all() as { name: string }[]).some((c) => c.name === coluna);
-  if (!existe) db.exec(`ALTER TABLE ${tabela} ADD COLUMN ${coluna} ${definicao}`);
+  if (existe) return;
+  try {
+    db.exec(`ALTER TABLE ${tabela} ADD COLUMN ${coluna} ${definicao}`);
+  } catch (e) {
+    // Outro processo criou a mesma coluna no mesmo instante: o resultado é o mesmo.
+    if (!/duplicate column/i.test(String(e))) throw e;
+  }
 }
 garantirColuna('usuarios', 'excluido_em', 'TEXT');
 // Índice de busca do WhatsApp (HMAC): o número em si fica cifrado na coluna whatsapp.
@@ -243,11 +264,6 @@ garantirColuna('campanhas', 'imagem_panfleto', "TEXT NOT NULL DEFAULT ''");
 garantirColuna('campanhas', 'divisao_n2_json', "TEXT NOT NULL DEFAULT ''");
 garantirColuna('campanhas', 'parceiro_id', 'TEXT');
 garantirColuna('campanhas', 'meta_ofertas', 'REAL NOT NULL DEFAULT 0');
-// Parceiro da campanha com acesso ao painel (pelo WhatsApp) e dados para o repasse (cifrados).
-garantirColuna('parceiros', 'whatsapp', "TEXT NOT NULL DEFAULT ''");
-garantirColuna('parceiros', 'whatsapp_indice', 'TEXT');
-garantirColuna('parceiros', 'tipo_chave_pix', "TEXT NOT NULL DEFAULT 'cnpj'");
-garantirColuna('parceiros', 'chave_pix', "TEXT NOT NULL DEFAULT ''");
 // Motivo de recusa no cadastro de semeador; origem das ofertas registradas à mão pela equipe.
 garantirColuna('semeadores', 'observacao', "TEXT NOT NULL DEFAULT ''");
 garantirColuna('ofertas', 'origem', "TEXT NOT NULL DEFAULT 'app'");
@@ -347,6 +363,13 @@ CREATE TABLE IF NOT EXISTS mensagens (
 );
 `);
 
+// Depois de criar a tabela (numa instalação nova ela ainda não existia acima).
+// Parceiro da campanha com acesso ao painel (pelo WhatsApp) e dados para o repasse (cifrados).
+garantirColuna('parceiros', 'whatsapp', "TEXT NOT NULL DEFAULT ''");
+garantirColuna('parceiros', 'whatsapp_indice', 'TEXT');
+garantirColuna('parceiros', 'tipo_chave_pix', "TEXT NOT NULL DEFAULT 'cnpj'");
+garantirColuna('parceiros', 'chave_pix', "TEXT NOT NULL DEFAULT ''");
+
 /** Anexos do "Fale conosco": pasta separada, NÃO servida publicamente (só o admin baixa). */
 export const PASTA_ANEXOS = join(PASTA_DADOS, 'anexos');
 mkdirSync(PASTA_ANEXOS, { recursive: true });
@@ -377,6 +400,7 @@ CREATE INDEX IF NOT EXISTS shows_status ON solicitacoes_show(status, criado_em);
 CREATE INDEX IF NOT EXISTS auditoria_recurso ON auditoria(recurso, criado_em);
 CREATE INDEX IF NOT EXISTS limites_desde ON limites(desde);
 `);
+db.exec('COMMIT');
 // Atualiza as estatísticas que o SQLite usa para escolher o melhor índice.
 db.exec('PRAGMA optimize = 0x10002;');
 

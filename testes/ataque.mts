@@ -187,7 +187,8 @@ const grande = await req(API, '/contato', { method: 'POST', cru: JSON.stringify(
 conferir('Pedido gigante (2 MB) é recusado sem derrubar a API', grande.status === 413 && (await req(API, '/campanha')).status === 200);
 
 // ===== 10. Sessões e pagamento =====
-conferir('SEGURANÇA: aviso de pagamento falso (sem assinatura) é recusado', (await req(API, '/webhooks/pix', { method: 'POST', json: { txid: 'qualquer' } })).status === 401);
+conferir('SEGURANÇA: aviso de pagamento falso (sem assinatura) é recusado', (await req(API, '/webhooks/pix', { method: 'POST', json: { txid: 'qualquer' } })).status === 401
+  && (await req(API, '/webhooks/pix/segredo-chutado/pix', { method: 'POST', json: [{ txid: 'a'.repeat(32) }] })).status === 401);
 const usado = `6370${sufixo()}`;
 zerar();
 await req(API, '/auth/codigo', { method: 'POST', json: { whatsapp: usado } });

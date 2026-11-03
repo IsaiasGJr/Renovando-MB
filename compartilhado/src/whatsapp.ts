@@ -18,7 +18,8 @@ const lerConfig = () => ({
   modelo: process.env.WHATSAPP_MODELO ?? 'codigo_login',
   idioma: process.env.WHATSAPP_IDIOMA ?? 'pt_BR',
   botao: process.env.WHATSAPP_BOTAO !== '0',
-  versao: process.env.WHATSAPP_API_VERSAO ?? 'v21.0',
+  // v25.0 vale até jul/2028 (a v21.0 seria desligada pela Meta em jan/2027, antes do fim da campanha).
+  versao: process.env.WHATSAPP_API_VERSAO ?? 'v25.0',
 });
 
 export const whatsappConfigurado = () => {

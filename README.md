@@ -164,7 +164,7 @@ Com `npm run api` e `npm run admin` ligados (modo de desenvolvimento):
 npm test
 ```
 
-Roda 295 verificações (41 delas são tentativas de ataque): segurança, criptografia, exclusão de conta, envio de imagens, painéis, verificação em duas etapas,
+Roda 303 verificações (41 delas são tentativas de ataque): segurança, criptografia, exclusão de conta, envio de imagens, painéis, verificação em duas etapas,
 WhatsApp, avisos no celular e mais. Os testes **nunca mexem em igrejas reais** (cada um cria uma igreja temporária e apaga
 tudo no fim) e se recusam a rodar se a API não estiver em modo de desenvolvimento.
 
@@ -241,7 +241,7 @@ As respostas para os formulários das lojas (dados coletados, privacidade, sorte
 
 ## O que ainda depende de você
 
-1. **Gateway PIX:** a **Efí já está integrada** (só configurar, PUBLICAR.md seção 7). Outro gateway: mandar as chaves de teste.
+1. **PIX:** **Banco Inter** (o banco do projeto) e Efí já estão integrados: falta criar a integração no Internet Banking PJ do Inter e configurar (PUBLICAR.md, seção 7).
 2. **WhatsApp:** conta Meta Business, número e modelo `codigo_login` aprovado (ver PUBLICAR.md).
 3. **Jurídico:** autorização do sorteio, regulamento, revisão dos Termos e da Política de Privacidade (falta pôr o telefone e o endereço reais de contato).
 4. **Lojas:** Google Play e Apple exigem regras próprias para apps com sorteio pago; decidir com o advogado se a oferta fica no app ou só no site.

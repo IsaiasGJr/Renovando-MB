@@ -3,10 +3,13 @@
 // Só LÊ a lista pública do site; não envia nada para ele. Pode rodar de novo: atualiza as que já existem
 // (pelo endereço/slug) sem duplicar e sem mexer em status, pastor, semeador ou ofertas.
 import { join } from 'node:path';
+import { existsSync } from 'node:fs';
 import { writeFile } from 'node:fs/promises';
 import sharp from 'sharp';
 
-process.loadEnvFile(new URL('../api/.env', import.meta.url));
+// No computador lê o api/.env (chaves de criptografia); no servidor (Docker) elas já vêm do ambiente.
+const arquivoEnv = new URL('../api/.env', import.meta.url);
+if (existsSync(arquivoEnv)) process.loadEnvFile(arquivoEnv);
 const { db, inserir, PASTA_UPLOADS, um } = await import('../compartilhado/src/db.ts');
 const { cifrar } = await import('../compartilhado/src/cripto.ts');
 const { novoId, slugify, slugUnico } = await import('../compartilhado/src/util.ts');

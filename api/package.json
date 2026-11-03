@@ -6,7 +6,8 @@
     "dev": "tsx watch src/server.ts",
     "start": "tsx src/server.ts",
     "typecheck": "tsc --noEmit",
-    "efi-webhook": "tsx src/efi-webhook.ts"
+    "pix-webhook": "tsx src/pix-webhook.ts",
+    "testar-whatsapp": "tsx src/testar-whatsapp.ts"
   },
   "license": "UNLICENSED",
   "type": "module",

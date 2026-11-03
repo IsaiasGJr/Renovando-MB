@@ -27,7 +27,7 @@ O passo a passo técnico de cada item está em [PUBLICAR.md](PUBLICAR.md).
    - Quando não houver erro: **Importar**. Importar de novo o mesmo arquivo não duplica nada.
    - Confira o total: soma das ofertas e quantidade de cupons devem bater com o relatório do sistema antigo.
 5. Trazer o conteúdo mais recente do site (prêmios, resultados, igrejas novas):
-   `docker compose exec api npm run importar-conteudo` e `docker compose exec api npm run importar-igrejas`
+   `docker compose exec api npm run importar-conteudo`, `... importar-igrejas` e `... importar-artistas`
    (só leem as páginas públicas do site; fazem backup do banco antes).
 6. **Ligar o PIX de verdade**: `PIX_PROVEDOR=<gateway>` no `.env` da API e reiniciar (`docker compose up -d`).
 7. **Teste de fumaça** com uma pessoa da equipe:

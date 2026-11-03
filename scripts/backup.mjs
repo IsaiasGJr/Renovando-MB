@@ -68,6 +68,11 @@ async function backup() {
   console.log(`[backup] ${new Date().toISOString()} banco ${tamanho} MB; ${imagens} imagem(ns) e ${anexos} anexo(s) novos; ${apagadas} cópia(s) antiga(s) removida(s).`);
 }
 
-const executar = () => backup().catch((e) => console.error(`[backup] FALHOU: ${e.message}`));
-await executar();
-if (process.argv.includes('--repetir')) setInterval(executar, 24 * 3_600_000);
+const repetir = process.argv.includes('--repetir');
+// Se falhar (ex.: na primeira subida o banco ainda não existe), tenta de novo em 5 minutos; depois, todo dia.
+async function ciclo() {
+  const deuCerto = await backup().then(() => true, (e) => (console.error(`[backup] FALHOU: ${e.message}`), false));
+  if (repetir) setTimeout(ciclo, deuCerto ? 24 * 3_600_000 : 5 * 60_000);
+  else if (!deuCerto) process.exitCode = 1;
+}
+await ciclo();

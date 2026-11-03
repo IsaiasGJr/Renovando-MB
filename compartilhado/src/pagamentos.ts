@@ -1,18 +1,18 @@
 /**
  * Cobrança PIX das ofertas: TODO gateway passa por aqui.
  *
- * Gateways prontos: efi (pix-efi.ts). Para ligar outro (Asaas, Mercado Pago, Pagar.me...), crie um "provedor"
+ * Prontos: inter e efi (pix-bacen.ts, API Pix do Banco Central). Para ligar outro, crie um "provedor"
  * com as duas funções abaixo e registre em PROVEDORES. O resto do sistema não muda:
  *   - criarCobranca: pede ao gateway o PIX e devolve o "copia e cola" (e a imagem do QR, se houver);
  *   - lerWebhook: confere a assinatura do aviso do gateway e diz quais cobranças foram pagas.
  *
- * Escolha no .env da API: PIX_PROVEDOR=teste | desligado | efi.
+ * Escolha no .env da API: PIX_PROVEDOR=teste | desligado | inter | efi.
  *   teste      cobrança fictícia + botão "Simular pagamento" (só com NODE_ENV=development)
  *   desligado  ofertas fechadas (padrão em produção até o gateway ser configurado)
  */
 import { timingSafeEqual } from 'node:crypto';
 import type { Request } from 'express';
-import { efi } from './pix-efi.ts';
+import { efi, inter } from './pix-bacen.ts';
 import { ErroHttp } from './util.ts';
 
 export type NovaCobranca = {
@@ -64,7 +64,7 @@ const desligado: ProvedorPix = {
   },
 };
 
-const PROVEDORES: Record<string, ProvedorPix> = { teste, desligado, efi };
+const PROVEDORES: Record<string, ProvedorPix> = { teste, desligado, inter, efi };
 
 /** Provedor escolhido no .env. Em produção, o provedor de teste nunca é usado. */
 export function provedorPix(): ProvedorPix {

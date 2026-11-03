@@ -82,6 +82,8 @@ nano api/.env   # e os outros
 ## 5. Subir
 
 ```bash
+# Pastas de dados com o dono certo (os serviços rodam como usuário comum, uid 1000)
+mkdir -p dados backups api/certificados && sudo chown -R 1000:1000 dados backups
 docker compose up -d --build
 docker compose ps          # todos "healthy"
 docker compose logs -f api # acompanhar
@@ -90,9 +92,16 @@ docker compose logs -f api # acompanhar
 Abra `https://admin.renovandoavinhadosenhor.com`, entre e ative a **verificação em duas etapas**
 (Minha conta). Com `ADMIN_2FA_OBRIGATORIO=1`, todos os usuários do painel precisam ativar.
 
-Os dados ficam em `./dados` (banco, imagens e anexos). Para levar o conteúdo que já está pronto
-(75 igrejas, 47 artistas, prêmios, textos), copie a pasta `dados/` do seu computador para o servidor
-**antes** de subir, junto com as mesmas chaves de criptografia.
+Os dados ficam em `./dados` (banco, imagens e anexos). A instalação nova começa **limpa** (só a campanha,
+os prêmios e os textos legais). Traga o conteúdo do site com os importadores (só leem as páginas públicas):
+
+```bash
+docker compose exec api npm run importar-igrejas    # 76 igrejas, com logo
+docker compose exec api npm run importar-artistas   # 47 artistas, com fotos
+docker compose exec api npm run importar-conteudo   # prêmios e resultados, notícias, banners, parcerias...
+```
+
+Não copie a pasta `dados/` do computador de desenvolvimento: ela tem contas de teste e usa outras chaves.
 
 ## 6. WhatsApp (código de login)
 
@@ -107,44 +116,55 @@ Os dados ficam em `./dados` (banco, imagens e anexos). Para levar o conteúdo qu
 Até configurar um gateway, `PIX_PROVEDOR=desligado` mantém as ofertas fechadas
 (o app mostra "As ofertas pelo app ainda não estão abertas").
 
-### Qual gateway
+### Qual banco ou gateway
 
-| Gateway | Pede dados de quem paga? | Encaixe neste sistema |
+| Opção | Pede dados de quem paga? | Situação |
 |---|---|---|
-| **Efí** (antiga Gerencianet) | **Não**: o PIX sai só com valor e chave | **Pronto no sistema** (`PIX_PROVEDOR=efi`). Combina com oferta anônima e cadastro só por WhatsApp |
+| **Banco Inter** (conta PJ, API Pix do próprio banco) | **Não** | **Pronto** (`PIX_PROVEDOR=inter`). O PIX cai direto na conta do Inter, sem gateway no meio |
+| **Efí** (antiga Gerencianet) | **Não** | **Pronto** (`PIX_PROVEDOR=efi`) |
 | Mercado Pago | E-mail do pagador | Precisaria pedir e-mail no app |
-| Asaas | Cliente com CPF/CNPJ | Precisaria pedir CPF de todo ofertante |
-| Pagar.me | Cliente com CPF/CNPJ | Precisaria pedir CPF de todo ofertante |
+| Asaas / Pagar.me | CPF/CNPJ do pagador | Precisaria pedir CPF de todo ofertante |
 
-Se escolher outro, a integração é um arquivo novo no padrão de `compartilhado/src/pix-efi.ts`.
+Inter e Efí usam a **API Pix padrão do Banco Central** (`compartilhado/src/pix-bacen.ts`). Outro banco com a
+mesma API entra ali com poucas linhas.
 
-### Efí (pronto)
+### Banco Inter (recomendado: é o banco do projeto)
+
+1. No **Internet Banking PJ** do Inter: **Soluções para sua empresa → Nova Integração**.
+   Marque a **API Pix** com as permissões de cobrança imediata e webhook
+   (`cob.write`, `cob.read`, `webhook.write`, `webhook.read`) e aceite.
+2. Na lista de integrações, **baixe a chave e o certificado** (arquivos `.key` e `.crt`) e **ative**.
+   Copie os dois para o servidor em `api/certificados/` (a pasta não vai para o GitHub).
+3. Tenha uma **chave PIX** na conta (de preferência a aleatória).
+4. No `api/.env`:
+   ```
+   PIX_PROVEDOR=inter
+   INTER_CLIENT_ID=...
+   INTER_CLIENT_SECRET=...
+   INTER_CERTIFICADO=/app/api/certificados/inter.crt
+   INTER_CHAVE_PRIVADA=/app/api/certificados/inter.key
+   INTER_CHAVE_PIX=...
+   # INTER_CONTA=12345678   só se a integração estiver ligada a mais de uma conta (número com dígito)
+   # INTER_HOMOLOGACAO=1    para usar o ambiente de testes (sandbox) do Inter
+   ```
+5. `docker compose up -d` e cadastre o aviso de pagamento (uma vez):
+   ```bash
+   docker compose exec api npm run pix-webhook -w renovando-api
+   ```
+6. Faça uma oferta real de R$ 20, pague e confira o cupom no app e a oferta no painel.
+
+### Efí
 
 1. Abra a conta PJ na Efí e, no painel, crie uma **aplicação** com os escopos da API Pix
    (`cob.write`, `cob.read`, `webhook.write`, `webhook.read`).
-2. Baixe o **certificado** (.p12) de **homologação** (testes) e, depois, o de **produção**.
-   Copie para o servidor, por exemplo `api/certificados/efi.p12` (a pasta não vai para o GitHub).
-3. Cadastre uma **chave PIX** na conta (de preferência a aleatória).
-4. No `api/.env`:
-   ```
-   PIX_PROVEDOR=efi
-   EFI_CLIENT_ID=...
-   EFI_CLIENT_SECRET=...
-   EFI_CERTIFICADO=/app/api/certificados/efi.p12
-   EFI_CHAVE_PIX=...
-   EFI_HOMOLOGACAO=1        # tire esta linha ao passar para produção
-   ```
-5. `docker compose up -d` e cadastre o aviso de pagamento (uma vez por ambiente):
-   ```bash
-   docker compose exec api npm run efi-webhook -w renovando-api
-   ```
-6. Teste: no ambiente de homologação da Efí, cobranças **até R$ 10,00** são pagas sozinhas
-   (para testar, use um cupom de R$ 10 numa campanha de teste). O cupom deve aparecer no app.
-7. Produção: troque as credenciais e o certificado pelos de produção, tire `EFI_HOMOLOGACAO`,
-   rode o passo 5 de novo e faça uma oferta real de R$ 20.
+2. Baixe o **certificado** (.p12) de **homologação** (testes) e, depois, o de **produção**, para `api/certificados/`.
+3. Cadastre uma **chave PIX** na conta.
+4. No `api/.env`: `PIX_PROVEDOR=efi`, `EFI_CLIENT_ID`, `EFI_CLIENT_SECRET`, `EFI_CERTIFICADO=/app/api/certificados/efi.p12`,
+   `EFI_CHAVE_PIX` e, para testes, `EFI_HOMOLOGACAO=1` (na homologação, cobranças até R$ 10,00 são pagas sozinhas).
+5. Cadastre o aviso de pagamento: `docker compose exec api npm run pix-webhook -w renovando-api`.
 
 Segurança: o aviso de pagamento leva o `WEBHOOK_SEGREDO` no endereço e, mesmo assim, o sistema
-**consulta a cobrança na Efí** e só libera os cupons se ela estiver paga. Um aviso falso não libera nada.
+**consulta a cobrança no banco** e só libera os cupons se ela estiver paga. Um aviso falso não libera nada.
 
 ## 8. Backup
 

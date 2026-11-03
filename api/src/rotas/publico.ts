@@ -401,7 +401,8 @@ publico.delete('/me', exigirUsuario, (req, res) => {
 });
 
 // Aviso do gateway de pagamento: confere a assinatura e confirma o PIX (pode chegar repetido).
-publico.post('/webhooks/pix', limitePorIp('webhook', 300, 15 * MIN), async (req, res) => {
+// O segredo vai no endereço cadastrado no banco (/webhooks/pix/<segredo>); o Inter acrescenta "/pix" no fim.
+publico.post(['/webhooks/pix', '/webhooks/pix/:segredo', '/webhooks/pix/:segredo/pix'], limitePorIp('webhook', 300, 15 * MIN), async (req, res) => {
   for (const pago of await provedorPix().lerWebhook(req)) {
     // Cobrança que não é nossa (ou já apagada) não derruba o aviso inteiro: o gateway reenviaria sem parar.
     try {
