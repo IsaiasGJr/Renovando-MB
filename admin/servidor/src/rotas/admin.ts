@@ -1108,10 +1108,12 @@ function porDia(f: FiltroOfertas) {
 
 function porIgreja(f: FiltroOfertas, limite = 10) {
   const { where, params } = whereOfertas({ ...f, status: 'paga' });
+  // Soma primeiro só as ofertas (pelo índice) e depois junta os dados das poucas igrejas do ranking.
   return todos(
-    `SELECT i.id, i.nome_fantasia AS igreja, i.cidade, i.uf, SUM(o.valor) AS valor, COUNT(*) AS ofertas
-       FROM ofertas o JOIN igrejas i ON i.id = o.igreja_id ${where}
-      GROUP BY i.id ORDER BY valor DESC LIMIT ${limite}`,
+    `SELECT i.id, i.nome_fantasia AS igreja, i.cidade, i.uf, t.valor, t.ofertas
+       FROM (SELECT o.igreja_id, SUM(o.valor) AS valor, COUNT(*) AS ofertas FROM ofertas o ${where} GROUP BY o.igreja_id) t
+       JOIN igrejas i ON i.id = t.igreja_id
+      ORDER BY t.valor DESC LIMIT ${limite}`,
     ...params,
   );
 }
@@ -1235,10 +1237,11 @@ admin.get('/usuarios', somenteAdmin, (req, res) => {
     : { where: "lower(u.nome || ' ' || u.sobrenome) LIKE ?", valor: `%${busca.toLowerCase()}%` };
   res.json(
     todos<Record<string, unknown>>(
-      `SELECT u.id, u.nome, u.sobrenome, u.whatsapp, u.criado_em,
-              (SELECT COUNT(*) FROM cupons c WHERE c.usuario_id = u.id) AS cupons,
-              (SELECT COALESCE(SUM(valor), 0) FROM ofertas o WHERE o.usuario_id = u.id AND o.status = 'paga') AS total
+      // Cupons e total somados uma vez por tabela (e não uma conta por ofertante).
+      `SELECT u.id, u.nome, u.sobrenome, u.whatsapp, u.criado_em, COALESCE(c.n, 0) AS cupons, COALESCE(t.total, 0) AS total
          FROM usuarios u
+         LEFT JOIN (SELECT usuario_id, COUNT(*) AS n FROM cupons GROUP BY usuario_id) c ON c.usuario_id = u.id
+         LEFT JOIN (SELECT usuario_id, SUM(valor) AS total FROM ofertas WHERE status = 'paga' GROUP BY usuario_id) t ON t.usuario_id = u.id
         WHERE u.excluido_em IS NULL AND ${filtro.where}
         ORDER BY total DESC LIMIT 200`,
       filtro.valor,

@@ -382,7 +382,12 @@ db.exec(`CREATE TABLE IF NOT EXISTS limites (
 
 // Índices das consultas mais usadas (cupons do ofertante, relatórios, painéis, listas do admin).
 db.exec(`
-CREATE INDEX IF NOT EXISTS ofertas_usuario ON ofertas(usuario_id);
+CREATE INDEX IF NOT EXISTS ofertas_usuario_pagas ON ofertas(usuario_id, status, valor);
+DROP INDEX IF EXISTS ofertas_usuario;
+-- Painel com campanha grande (50 mil ofertas): somas e rankings lidos só do índice, sem abrir cada oferta.
+CREATE INDEX IF NOT EXISTS ofertas_pagas_resumo ON ofertas(campanha_id, status, igreja_id, valor);
+CREATE INDEX IF NOT EXISTS ofertas_pagas_divisao ON ofertas(campanha_id, status, divisao_json, valor);
+CREATE INDEX IF NOT EXISTS ofertas_criada ON ofertas(criada_em);
 CREATE INDEX IF NOT EXISTS ofertas_igreja_status ON ofertas(igreja_id, status);
 CREATE INDEX IF NOT EXISTS ofertas_campanha_status ON ofertas(campanha_id, status, criada_em);
 CREATE INDEX IF NOT EXISTS cupons_usuario ON cupons(usuario_id, criado_em);
