@@ -27,3 +27,6 @@ Thumbs.db
 
 # Configuração local do editor
 .claude/
+
+# Homologação no computador (segredos e dados de teste)
+homologacao/

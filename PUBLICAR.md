@@ -200,6 +200,28 @@ O banco é atualizado sozinho ao iniciar (colunas novas são criadas sem perder 
 
 ## Homologação: pessoas de fora testando antes do lançamento
 
+### Sem servidor e sem cartão: no seu computador, com o ngrok
+
+1. Conta grátis em **ngrok.com** (não pede cartão). No painel: **Domains** → pegue o domínio fixo gratuito
+   (algo como `nome.ngrok-free.app`). Instale o ngrok e rode `ngrok config add-authtoken <seu-token>`.
+2. Abra o Docker Desktop e, na pasta principal:
+   ```bash
+   node scripts/homologacao-local.mjs nome.ngrok-free.app 63999990001 63999990002
+   docker compose -f homologacao/docker-compose.yml up -d --build
+   docker compose -f homologacao/docker-compose.yml exec api npm run importar-igrejas
+   docker compose -f homologacao/docker-compose.yml exec api npm run importar-artistas
+   docker compose -f homologacao/docker-compose.yml exec api npm run importar-conteudo
+   ngrok http 3334 --url=nome.ngrok-free.app
+   ```
+   O primeiro comando gera tudo (segredos, contas de demonstração, pagamento simulado) na pasta `homologacao/`,
+   que não vai para o GitHub, e aponta o build `teste` do app para o seu domínio. Ele mostra a senha do painel
+   e o código dos testadores.
+3. Gere o APK: `cd renovando-app` e `npx eas-cli@latest build --profile teste --platform android`, e mande o link.
+4. Enquanto a pessoa testa, **o computador precisa ficar ligado** com o Docker e o ngrok abertos.
+   O painel da homologação abre só aqui: `http://localhost:4001`.
+
+### Com um servidor na nuvem
+
 Um servidor **igual ao de produção** (mesmas proteções), mas com **contas de demonstração** e **pagamento simulado**,
 para enviar o app a testadores. Nenhum PIX de verdade e nenhum WhatsApp são necessários.
 
