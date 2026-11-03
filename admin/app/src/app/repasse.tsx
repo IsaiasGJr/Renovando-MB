@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Clipboard from 'expo-clipboard';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import { api } from '@/api';
 import { GradeKpi, Info, Kpi, Selo } from '@/components/admin';
 import { Aviso, Botao, Campo, Carregando, Cartao, Tela } from '@/components/ui';
@@ -43,7 +43,7 @@ export default function Repasse() {
   }
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <>
       <Stack.Screen options={{ title: nome ?? 'Repasse' }} />
       <Tela bordas={['bottom']}>
         {q.isLoading ? <Carregando /> : null}
@@ -98,6 +98,6 @@ export default function Repasse() {
           </>
         ) : null}
       </Tela>
-    </KeyboardAvoidingView>
+    </>
   );
 }

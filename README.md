@@ -82,6 +82,29 @@ Deixa as imagens antigas no mesmo padrão dos envios novos (WEBP, até 1600 px, 
 
 Em **Meus cupons** o app mostra o mesmo que o site: resumo (total, premiados, último cupom), filtro por oferta e, em cada cupom, campanha, igreja, emissão, número (`#123456`), situação (Ativo/Expirado) e selo Premiado. **Baixar cupom** gera o bilhete da campanha com o número, a igreja, o nome e a data (a arte de cada campanha é trocada em Campanhas → Arte do cupom; sem arte, sai um bilhete com as cores da marca). Só o dono do cupom consegue baixar.
 
+### App instalado de verdade, antes do servidor (build de desenvolvimento)
+
+Para testar o app instalado no Android, com avisos no celular e digital funcionando (o Expo Go não tem),
+usando a API do seu computador:
+
+```bash
+cd renovando-app
+npx eas-cli@latest login                      # conta grátis em expo.dev
+npx eas-cli@latest init                       # só na primeira vez
+npx eas-cli@latest build --profile development --platform android
+```
+
+O EAS gera um APK e mostra um link/QR Code para instalar no celular. Depois, no computador:
+
+```bash
+npm run api          # terminal 1
+npm run app:build    # terminal 2 (no lugar de "npm run app")
+```
+
+Abra o app instalado e escolha o servidor que aparece (ou leia o QR Code). Ele usa a API do computador pelo Wi-Fi,
+como o Expo Go. Para o app admin: o mesmo na pasta `admin/app`, com `npm run admin` e `npm run admin:app:build`.
+O perfil `preview` (igual à loja) só funciona depois que `api.renovandoavinhadosenhor.com` existir.
+
 ### Se o app não abrir no celular
 
 1. **A API está ligada?** Sem o terminal do `npm run api` aberto, o app não carrega nada. Teste no computador: http://localhost:3333/api/saude
@@ -164,7 +187,7 @@ Com `npm run api` e `npm run admin` ligados (modo de desenvolvimento):
 npm test
 ```
 
-Roda 303 verificações (41 delas são tentativas de ataque): segurança, criptografia, exclusão de conta, envio de imagens, painéis, verificação em duas etapas,
+Roda 310 verificações (41 delas são tentativas de ataque): segurança, criptografia, exclusão de conta, envio de imagens, painéis, verificação em duas etapas,
 WhatsApp, avisos no celular e mais. Os testes **nunca mexem em igrejas reais** (cada um cria uma igreja temporária e apaga
 tudo no fim) e se recusam a rodar se a API não estiver em modo de desenvolvimento.
 

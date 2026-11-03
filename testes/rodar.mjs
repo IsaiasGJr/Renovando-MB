@@ -40,6 +40,7 @@ const suites = [
   ['importacoes', [envAdmin, banco]],
   ['seg3', [envAdmin, envApi, banco]],
   ['pix-banco', []],
+  ['demonstracao', []],
   ['ataque', [envAdmin, envApi, banco]],
 ];
 

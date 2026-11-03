@@ -26,7 +26,8 @@ import type {
 
 /** Tudo que o app consome da API. */
 export interface Api {
-  modoTeste(): Promise<boolean>;
+  /** Como a API está rodando: desenvolvimento (código 123456) e/ou pagamento simulado (homologação). */
+  modo(): Promise<{ modoTeste: boolean; pagamentoSimulado: boolean }>;
 
   campanha(): Promise<Campanha>;
   premios(): Promise<Premio[]>;

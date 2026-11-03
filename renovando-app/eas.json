@@ -8,6 +8,15 @@
       "developmentClient": true,
       "distribution": "internal"
     },
+    "teste": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://teste-api.renovandoavinhadosenhor.com"
+      }
+    },
     "preview": {
       "distribution": "internal",
       "android": {

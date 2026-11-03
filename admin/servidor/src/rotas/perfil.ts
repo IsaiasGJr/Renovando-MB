@@ -19,6 +19,7 @@ import { pdfPanfletoDaIgreja } from '../../../../compartilhado/src/panfleto.ts';
 import { perfisDoWhatsapp } from '../../../../compartilhado/src/perfis.ts';
 import { ehImagemValida, limitar, TIPOS_IMAGEM, zerarLimite } from '../../../../compartilhado/src/seguranca.ts';
 import { ErroHttp, naoEncontrado, novoId, param, query, validar } from '../../../../compartilhado/src/util.ts';
+import { codigoDemonstracao } from '../../../../compartilhado/src/demonstracao.ts';
 import { enviarCodigoWhatsapp } from '../../../../compartilhado/src/whatsapp.ts';
 import { assinar, assinarEscolha, assinarPerfil, exigirPerfil, lerEscolha } from '../auth.ts';
 import { env } from '../env.ts';
@@ -42,8 +43,9 @@ entrada.post('/entrar/whatsapp/codigo', async (req, res) => {
   const { perfis, situacoes } = perfisDoWhatsapp(idx);
   // Só envia para quem tem algum acesso. A resposta é a mesma nos dois casos (não revela quem tem acesso).
   if (perfis.length || situacoes.length) {
-    const codigo = env.dev ? '123456' : String(randomInt(0, 1_000_000)).padStart(6, '0');
-    if (!env.dev) await enviarCodigoWhatsapp(whatsapp, codigo);
+    const demonstracao = codigoDemonstracao(whatsapp);
+    const codigo = env.dev ? '123456' : demonstracao ?? String(randomInt(0, 1_000_000)).padStart(6, '0');
+    if (!env.dev && !demonstracao) await enviarCodigoWhatsapp(whatsapp, codigo);
     executar(
       `INSERT INTO otps (whatsapp, codigo, tentativas, expira_em) VALUES (?, ?, 0, ?)
        ON CONFLICT(whatsapp) DO UPDATE SET codigo = excluded.codigo, tentativas = 0, expira_em = excluded.expira_em`,

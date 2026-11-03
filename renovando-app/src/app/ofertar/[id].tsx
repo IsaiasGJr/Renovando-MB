@@ -6,7 +6,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Text, View } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
-import { api, useModoTeste } from '@/api';
+import { api, usePagamentoSimulado } from '@/api';
 import { Aviso, Botao, Carregando, Cartao, Tela, Titulo } from '@/components/ui';
 import { useAuth } from '@/store/auth';
 import { useRascunhoOferta } from '@/store/oferta';
@@ -25,7 +25,7 @@ export default function Pagamento() {
   const limpar = useRascunhoOferta((r) => r.limpar);
   const qc = useQueryClient();
   const [copiado, setCopiado] = useState(false);
-  const modoTeste = useModoTeste();
+  const pagamentoSimulado = usePagamentoSimulado();
 
   // Consulta o status a cada 3 s até o pagamento ser confirmado.
   const { data: oferta } = useQuery({
@@ -92,7 +92,7 @@ export default function Pagamento() {
         <Text style={{ color: cores.textoSuave }}>Aguardando confirmação do pagamento…</Text>
       </View>
 
-      {modoTeste ? (
+      {pagamentoSimulado ? (
         <>
           <Aviso>Modo de teste: nenhum pagamento real é feito. Toque abaixo para simular a confirmação.</Aviso>
           <Botao titulo="Simular pagamento" variante="contorno" onPress={async () => {

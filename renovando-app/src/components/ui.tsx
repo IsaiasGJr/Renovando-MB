@@ -2,6 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import type { ComponentProps, ReactNode } from 'react';
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -28,14 +29,17 @@ export function Tela({
 }) {
   return (
     <SafeAreaView style={s.tela} edges={bordas}>
-      {rolar ? (
-        <ScrollView contentContainerStyle={s.conteudo} keyboardShouldPersistTaps="handled">
-          {children}
-        </ScrollView>
-      ) : (
-        <View style={[s.conteudo, { flex: 1 }]}>{children}</View>
-      )}
-      {rodape ? <View style={s.rodape}>{rodape}</View> : null}
+      {/* O conteúdo (e o rodapé com os botões) sobe junto com o teclado, no iPhone e no Android. */}
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
+        {rolar ? (
+          <ScrollView contentContainerStyle={s.conteudo} keyboardShouldPersistTaps="handled">
+            {children}
+          </ScrollView>
+        ) : (
+          <View style={[s.conteudo, { flex: 1 }]}>{children}</View>
+        )}
+        {rodape ? <View style={s.rodape}>{rodape}</View> : null}
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

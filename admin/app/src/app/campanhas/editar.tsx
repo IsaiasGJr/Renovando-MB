@@ -89,7 +89,7 @@ function FormCampanha({ inicial, id }: { inicial: Form; id?: string }) {
   const erro = salvar.error ?? excluir.error;
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={90}>
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding" keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}>
       <ScrollView contentContainerStyle={ui.conteudo} keyboardShouldPersistTaps="handled">
         <Campo rotulo="Edição *" value={f.edicao} placeholder="Ex.: Edição 2027" onChangeText={(t) => set({ edicao: t })} />
         <Campo rotulo="Título *" value={f.titulo} placeholder="Ex.: Semeando esperança," onChangeText={(t) => set({ titulo: t })} />

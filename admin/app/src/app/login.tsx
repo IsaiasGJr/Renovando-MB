@@ -1,6 +1,6 @@
 import { useMutation } from '@tanstack/react-query';
-import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
+import { useRef, useState, type ComponentRef } from 'react';
+import { KeyboardAvoidingView, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { api, BASE_URL } from '@/api';
 import { Simbolo } from '@/components/Marca';
@@ -21,6 +21,7 @@ const mascara = (v: string) => {
 
 /** Entrada da equipe: pelo código no WhatsApp (como no site) ou com e-mail e senha. */
 export default function Login() {
+  const campoSenha = useRef<ComponentRef<typeof TextInput>>(null);
   const entrarNaSessao = useSessao((s) => s.entrar);
   const [modo, setModo] = useState<'whatsapp' | 'email'>('whatsapp');
 
@@ -72,7 +73,7 @@ export default function Login() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: cores.primariaEscura }}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
         <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: espaco.xl, gap: espaco.xl }}
           keyboardShouldPersistTaps="handled">
           <View style={{ gap: 4 }}>
@@ -125,10 +126,12 @@ export default function Login() {
               )
             ) : (
               <>
+                {/* "Próximo" no teclado leva à senha; "Entrar" na senha já faz o login. */}
                 <Campo rotulo="E-mail" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none"
-                  autoComplete="email" textContentType="username" />
-                <Campo rotulo="Senha" value={senha} onChangeText={setSenha} secureTextEntry autoComplete="current-password"
-                  textContentType="password" onSubmitEditing={() => entrar.mutate()} />
+                  autoComplete="email" textContentType="username" returnKeyType="next" submitBehavior="submit"
+                  onSubmitEditing={() => campoSenha.current?.focus()} />
+                <Campo ref={campoSenha} rotulo="Senha" value={senha} onChangeText={setSenha} secureTextEntry autoComplete="current-password"
+                  textContentType="password" returnKeyType="go" onSubmitEditing={() => email && senha && entrar.mutate()} />
                 {pedeCodigo ? (
                   <Campo rotulo="Código do aplicativo autenticador" value={codigo} keyboardType="number-pad" autoFocus
                     autoComplete="one-time-code" textContentType="oneTimeCode" placeholder="000000"

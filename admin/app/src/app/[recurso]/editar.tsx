@@ -56,7 +56,7 @@ export default function Editar() {
   return (
     <SafeAreaView style={ui.tela} edges={['bottom']}>
       <Stack.Screen options={{ title: titulo }} />
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={90}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding" keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}>
         <ScrollView contentContainerStyle={ui.conteudo} keyboardShouldPersistTaps="handled">
           {registro.isLoading || !valores ? <Carregando /> : <Formulario campos={r.campos} valores={valores} onChange={setValores} />}
           {id && r.podeExcluir !== false && valores ? (

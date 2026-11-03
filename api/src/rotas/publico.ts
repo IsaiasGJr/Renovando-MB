@@ -5,6 +5,7 @@ import multer from 'multer';
 import { z } from 'zod';
 import { assinar, exigirUsuario, usuarioOpcional } from '../auth.ts';
 import { executar, inserir, PASTA_ANEXOS, todos, um } from '../../../compartilhado/src/db.ts';
+import { codigoDemonstracao } from '../../../compartilhado/src/demonstracao.ts';
 import {
   buscarOferta,
   campanhaAtiva,
@@ -181,8 +182,10 @@ publico.post('/auth/codigo', async (req, res) => {
   limitar(`codigo-ip:${req.ip}`, 10, 15 * MIN);
   limitar(`codigo-fone:${fone}`, 3, 15 * MIN, 'Já enviamos códigos para este número. Aguarde 15 minutos para pedir outro.');
   // Em desenvolvimento o código é sempre 123456 e nada é enviado.
-  const codigo = env.dev ? '123456' : String(randomInt(0, 1_000_000)).padStart(6, '0');
-  if (!env.dev) await enviarCodigoWhatsapp(fone, codigo);
+  // Conta de demonstração (testadores e revisores das lojas): código fixo, sem WhatsApp.
+  const demonstracao = codigoDemonstracao(fone);
+  const codigo = env.dev ? '123456' : demonstracao ?? String(randomInt(0, 1_000_000)).padStart(6, '0');
+  if (!env.dev && !demonstracao) await enviarCodigoWhatsapp(fone, codigo);
   executar(
     `INSERT INTO otps (whatsapp, codigo, tentativas, expira_em) VALUES (?, ?, 0, ?)
      ON CONFLICT(whatsapp) DO UPDATE SET codigo = excluded.codigo, tentativas = 0, expira_em = excluded.expira_em`,
@@ -414,8 +417,8 @@ publico.post(['/webhooks/pix', '/webhooks/pix/:segredo', '/webhooks/pix/:segredo
   res.json({ ok: true });
 });
 
-// Só em desenvolvimento: simula a confirmação do PIX.
-if (env.dev) {
+// Só em desenvolvimento ou na homologação (PAGAMENTO_SIMULADO=1): simula a confirmação do PIX.
+if (env.dev || env.pagamentoSimulado) {
   console.warn('⚠ Rota de teste /dev/ofertas/:id/pagar ATIVA.');
   publico.post('/dev/ofertas/:id/pagar', (req, res) => {
     confirmarPagamento({ id: param(req, 'id') });

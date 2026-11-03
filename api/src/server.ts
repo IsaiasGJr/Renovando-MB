@@ -26,7 +26,7 @@ app.use(express.json({ limit: '100kb' }));
 // Imagens enviadas pelo admin (notícias, prêmios, artistas): só arquivos de imagem.
 app.use('/uploads', servirUploads());
 
-app.get('/api/saude', (_req, res) => res.json({ ok: true, modoTeste: env.dev }));
+app.get('/api/saude', (_req, res) => res.json({ ok: true, modoTeste: env.dev, pagamentoSimulado: env.dev || env.pagamentoSimulado }));
 
 // Página pública de exclusão de conta (link exigido pelo Google Play). Funciona sem o app.
 const paginas = fileURLToPath(new URL('./paginas/', import.meta.url));

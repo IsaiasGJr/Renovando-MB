@@ -1,5 +1,6 @@
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { conferirDemonstracao } from '../../../compartilhado/src/demonstracao.ts';
 
 if (existsSync('.env')) process.loadEnvFile('.env');
 
@@ -24,6 +25,7 @@ export const env = {
 if (!env.dev && (env.jwtSegredo === 'troque-este-segredo-do-admin' || env.jwtSegredo.length < 32)) {
   throw new Error('Defina JWT_SEGREDO no .env do admin (32+ caracteres aleatórios) antes de rodar em produção.');
 }
+conferirDemonstracao();
 if (!env.dev && env.adminSenha === 'renovando2026') {
   throw new Error('Defina uma ADMIN_SENHA própria no .env do admin antes de rodar em produção.');
 }

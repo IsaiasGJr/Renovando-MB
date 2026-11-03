@@ -1,5 +1,7 @@
 // Abre um dos apps no Expo já com o endereço certo para o celular.
-// Uso: node scripts/expo.mjs renovando-app [--limpar]     (é o que "npm run app" e "npm run admin:app" fazem)
+// Uso: node scripts/expo.mjs renovando-app [--limpar] [--go | --dev-client]
+//   npm run app / admin:app              abre no Expo Go (--go)
+//   npm run app:build / admin:app:build  abre no build de desenvolvimento instalado pelo EAS (--dev-client)
 //
 // Por quê: este computador tem placas de rede virtuais (VirtualBox, WSL/Hyper-V...). Sem isto o Expo pode
 // colocar no QR Code um IP que o celular não alcança, e o app fica carregando para sempre.

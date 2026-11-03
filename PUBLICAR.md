@@ -198,6 +198,38 @@ docker compose up -d --build
 
 O banco é atualizado sozinho ao iniciar (colunas novas são criadas sem perder dados).
 
+## Homologação: pessoas de fora testando antes do lançamento
+
+Um servidor **igual ao de produção** (mesmas proteções), mas com **contas de demonstração** e **pagamento simulado**,
+para enviar o app a testadores. Nenhum PIX de verdade e nenhum WhatsApp são necessários.
+
+1. **Servidor:** qualquer máquina Linux com Docker. Opção gratuita: Oracle Cloud "Always Free" (VM ARM;
+   pede cartão só para verificar). Faça as seções 3 a 5 deste guia nela.
+2. **Endereços:** no DNS do domínio, crie `teste-api` e `teste-admin` apontando para o IP da máquina, e no
+   `.env` da pasta: `DOMINIO_API=teste-api.renovandoavinhadosenhor.com` e `DOMINIO_ADMIN=teste-admin.renovandoavinhadosenhor.com`.
+   (São os endereços do perfil de build `teste` dos apps.)
+3. **`api/.env` e `admin/servidor/.env`** (as linhas de demonstração iguais nos dois):
+   ```
+   NODE_ENV=production
+   URL_PUBLICA=https://teste-api.renovandoavinhadosenhor.com      # só no api/.env
+   PAGAMENTO_SIMULADO=1                                         # só no api/.env: botão "Simular pagamento"
+   CONTAS_DEMONSTRACAO=63900000001,63900000002                  # celulares dos testadores (até 10)
+   CODIGO_DEMONSTRACAO=482915                                   # escolha 6 dígitos não óbvios
+   ```
+   Esses números entram com o código fixo, sem WhatsApp; qualquer outro número continua precisando do WhatsApp.
+   `PAGAMENTO_SIMULADO` é recusado no endereço oficial `api.renovandoavinhadosenhor.com`.
+4. `docker compose up -d --build` e os importadores (seção 5).
+5. **Apps de teste** (APK para Android, para mandar o link a quem vai testar):
+   ```bash
+   cd renovando-app && npx eas-cli@latest build --profile teste --platform android
+   cd admin/app && npx eas-cli@latest build --profile teste --platform android
+   ```
+6. Mande ao testador: o link do APK, o número de demonstração dele e o código. No app admin/painel, crie um
+   usuário de editor para ele (não de administrador).
+
+Ao lançar: use outro servidor (ou apague `dados/` desta máquina), **tire** `PAGAMENTO_SIMULADO` e deixe
+`CONTAS_DEMONSTRACAO` só com o número que a Apple e o Google usam na revisão (as lojas pedem um login de demonstração).
+
 ## 10. Apps nas lojas (EAS)
 
 Os endereços de produção já estão em `renovando-app/eas.json` e `admin/app/eas.json`.

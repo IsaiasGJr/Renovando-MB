@@ -69,9 +69,10 @@ const PROVEDORES: Record<string, ProvedorPix> = { teste, desligado, inter, efi }
 /** Provedor escolhido no .env. Em produção, o provedor de teste nunca é usado. */
 export function provedorPix(): ProvedorPix {
   const dev = process.env.NODE_ENV === 'development';
-  const nome = process.env.PIX_PROVEDOR ?? (dev ? 'teste' : 'desligado');
+  const nome = process.env.PIX_PROVEDOR ?? (dev || process.env.PAGAMENTO_SIMULADO === '1' ? 'teste' : 'desligado');
   const p = PROVEDORES[nome];
   if (!p) throw new Error(`PIX_PROVEDOR="${nome}" não existe. Opções: ${Object.keys(PROVEDORES).join(', ')}.`);
-  if (p === teste && !dev) return desligado;
+  // Fora do desenvolvimento, o provedor de teste só vale na homologação (PAGAMENTO_SIMULADO=1).
+  if (p === teste && !dev && process.env.PAGAMENTO_SIMULADO !== '1') return desligado;
   return p;
 }

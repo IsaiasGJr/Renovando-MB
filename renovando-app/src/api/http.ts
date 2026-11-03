@@ -53,7 +53,8 @@ async function req<T>(caminho: string, init: { method?: string; corpo?: unknown 
 const enc = encodeURIComponent;
 
 export const httpApi: Api = {
-  modoTeste: () => req<{ modoTeste: boolean }>('/saude').then((r) => r.modoTeste),
+  modo: () => req<{ modoTeste: boolean; pagamentoSimulado?: boolean }>('/saude')
+    .then((r) => ({ modoTeste: r.modoTeste, pagamentoSimulado: r.pagamentoSimulado ?? r.modoTeste })),
 
   campanha: () => req('/campanha'),
   premios: () => req('/premios'),
